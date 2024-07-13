@@ -1,12 +1,17 @@
 "use client";
 
 import 'phaser';
-import { Game } from '@/app/game';
+import { Game } from '@/app/game/game';
 import { useEffect } from 'react';
 
 let isGameInitialized = false;
 
-export const GameContainer = () => {
+export interface GameContainerProps {
+    nickName: string;
+    roomName: string;
+}
+
+export const GameContainer = ({ nickName, roomName }: GameContainerProps) => {
     useEffect(() => {
         if (!isGameInitialized) {
             const gameConfig: Phaser.Types.Core.GameConfig = {
@@ -25,9 +30,10 @@ export const GameContainer = () => {
             };
             
             const game = new Phaser.Game(gameConfig);
+            game.scene.start('gameplay', { nickName, roomName });
             isGameInitialized = true;
         }
-    }, []);
+    }, [nickName, roomName]);
 
     return (
         <div id='game-container' className="game-container"></div>

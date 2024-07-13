@@ -1,13 +1,26 @@
 "use client";
 
 import 'phaser';
-import { Character, CharacterType } from '@/app/character';
+import { Character, CharacterType } from '@/app/game/character';
+import { RTCManager } from "@/app/game/rtcManager";
+
+export interface GameBootData {
+    nickName: string;
+    roomName: string;
+}
 
 export class Game extends Phaser.Scene {
+    gameBootData!: GameBootData;
     player!: Character;
+    rtcManager!: RTCManager;
 
-    constructor(config?: string | Phaser.Types.Scenes.SettingsConfig) {
-        super(config);
+    constructor() {
+        super({ key: 'gameplay' });
+    }
+
+    init(data: GameBootData) {
+        this.gameBootData = data;
+        this.rtcManager = new RTCManager({ roomName: this.gameBootData.roomName });
     }
 
     preload() {
@@ -30,12 +43,15 @@ export class Game extends Phaser.Scene {
         this.physics.add.existing(ceiling, true);
 
         const spawnArea: Phaser.Types.Math.Vector2Like = { x: Phaser.Math.Between(32, 980), y: floor.y - 38 };
-        //@ts-ignore
-        window.player = this.player = new Character(this, spawnArea.x, spawnArea.y, CharacterType.red);
-        this.player.setNickName('host');
+        this.player = new Character(this, spawnArea.x, spawnArea.y, CharacterType.red);
+        this.player.setNickName(this.gameBootData.nickName);
     }
 
     update(time: number, delta: number) {
 
+    }
+
+    start() {
+        
     }
 };

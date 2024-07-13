@@ -1,0 +1,14 @@
+.room_select {
+    cursor: pointer;
+    color: white;
+    background-color: black;
+}
+
+.room_select th {
+    text-decoration: underline;
+}
+
+.room_select .selected {
+    color: black;
+    background-color: white;
+}

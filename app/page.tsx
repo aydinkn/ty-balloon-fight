@@ -7,7 +7,7 @@ import { NickName } from "@/app/nickNameForm";
 import { Lobby } from "@/app/lobby";
 import { CreateRoomForm } from "@/app/createRoomForm";
 
-const GameContainer = dynamic(() => import('@/app/gameContainer').then(m => m.GameContainer), {
+const GameContainer = dynamic(() => import('@/app/game/gameContainer').then(m => m.GameContainer), {
   ssr: false,
 });
 
@@ -65,8 +65,8 @@ export default function Home() {
 
   const _onCreateRoom = (roomName: string) => {
     setRoomName(roomName);
-    setRenderLobby(true);
     setRenderCreateRoomForm(false);
+    setRenderGame(true);
   };
 
   const _onClickChangeNickName = () => {
@@ -74,13 +74,25 @@ export default function Home() {
     setRenderNickNameForm(true);
   };
 
+  const _onJoinRoom = (roomName: string) => {
+    setRoomName(roomName);
+    setRenderLobby(false);
+    setRenderGame(true);
+  };
+
   return (
     <div>
       <p>Status: {isConnected ? "connected" : "disconnected"}</p>
-      {isConnected && renderNickNameForm && <NickName nickName={nickName} onClickCancel={_onClickCancelSetNickName} onSetNickName={_onSetNickName}></NickName>}
-      {renderLobby && <Lobby nickName={nickName} onClickCreateRoom={_onClickCreateRoom} onClickChangeNickName={_onClickChangeNickName}></Lobby>}
-      {renderCreateRoomForm && <CreateRoomForm onClickCancel={_onClickCancelCreateRoom} onCreateRoom={_onCreateRoom}></CreateRoomForm>}
-      {renderGame && <GameContainer />}
+
+      {isConnected && renderNickNameForm && <NickName nickName={nickName}
+        onClickCancel={_onClickCancelSetNickName} onSetNickName={_onSetNickName} />}
+
+      {renderLobby && <Lobby onClickCreateRoom={_onClickCreateRoom}
+        onClickChangeNickName={_onClickChangeNickName} onJoinRoom={_onJoinRoom} />}
+
+      {renderCreateRoomForm && <CreateRoomForm onClickCancel={_onClickCancelCreateRoom} onCreateRoom={_onCreateRoom} />}
+
+      {renderGame && <GameContainer nickName={nickName} roomName={roomName} />}
     </div>
   );
 }

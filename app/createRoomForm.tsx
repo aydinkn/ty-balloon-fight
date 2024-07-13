@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useEffect, useRef, useState } from "react";
+import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { socket } from "@/socket.mjs";
 
 export interface CreateRoomFormProps {
@@ -12,29 +12,29 @@ export function CreateRoomForm({ onClickCancel, onCreateRoom }: CreateRoomFormPr
     const inputRef = useRef<HTMLInputElement>(null);
     const [error, setError] = useState('');
 
-    useEffect(() => {
-        function createRoomResult(data: { success: boolean, errorCode: string }) {
-            if (!data.success) {
-                let errorMessage = 'Oda oluştururken bir hata oluştu.';
+    const createRoomResult = useCallback((data: { success: boolean, errorCode: string }) => {
+        if (!data.success) {
+            let errorMessage = 'Oda oluştururken bir hata oluştu.';
 
-                if (data.errorCode === 'ROOM_ALREADY_EXISTS') {
-                    errorMessage = 'Aynı isimde bir oda mevcut. Lütfen başka bir oda ismi yazın.';
-                }
-
-                setError(errorMessage);
-                return;
+            if (data.errorCode === 'ROOM_ALREADY_EXISTS') {
+                errorMessage = 'Aynı isimde bir oda mevcut. Lütfen başka bir oda ismi yazın.';
             }
 
-            setError('');
-            onCreateRoom(inputRef.current!.value);
+            setError(errorMessage);
+            return;
         }
 
+        setError('');
+        onCreateRoom(inputRef.current!.value);
+    }, [onCreateRoom]);
+
+    useEffect(() => {
         socket.on('createRoomResult', createRoomResult);
 
         return () => {
             socket.off('createRoomResult', createRoomResult);
         };
-    }, [onCreateRoom]);
+    }, [createRoomResult]);
 
     const _onClickCancel = () => {
         onClickCancel();
