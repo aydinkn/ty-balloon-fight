@@ -22,7 +22,7 @@ export const GameContainer = ({ nickName, roomName }: GameContainerProps) => {
                     default: 'arcade',
                     arcade: {
                         gravity: { x: 0, y: 200 },
-                        debug: true
+                        debug: false
                     }
                 },
                 scene: Game,

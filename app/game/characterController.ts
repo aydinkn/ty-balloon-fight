@@ -1,105 +1,282 @@
 import 'phaser';
 import { Client, RTCManager } from '@/app/game/rtcManager';
+import { Character, CharacterState } from '@/app/game/character';
 
-export interface CharacterController {
-    left: () => boolean;
-    right: () => boolean;
-    flap: () => boolean;
+interface Vector {
+    x: number;
+    y: number;
+}
+
+interface InputState {
+    left?: boolean;
+    right?: boolean;
+    flap?: boolean;
 };
 
-export class LocalPlayerController implements CharacterController {
+export abstract class CharacterController {
+    protected character!: Character;
+    protected isOnGround = false;
+    protected walkSpeed = 100;
+    protected flapAccelerationX = 150;
+    protected flapTime = 0;
+    protected flapRate = 300;
+    protected flapVelocityY = 150;
+    protected ceiling: Phaser.GameObjects.GameObject | null;
+    protected floor: Phaser.GameObjects.GameObject | null;
+
+    constructor(protected scene: Phaser.Scene) {
+        this.floor = scene.children.getByName('floor');
+        this.ceiling = scene.children.getByName('ceiling');
+    }
+
+    setCharacter(character: Character) {
+        this.character = character;
+    }
+
+    isOnTheGround() {
+        return this.isOnGround;
+    }
+
+    protected handleFloorCollision() {
+        if (!this.floor) return;
+
+        this.isOnGround = false;
+
+        this.scene.physics.collide(this.character, this.floor, () => {
+            this.isOnGround = true;
+        });
+    }
+
+    protected handleCeilingCollision() {
+        if (!this.ceiling) return;
+
+        const balloon = this.character.getBalloon();
+
+        if (!balloon) return;
+
+        const body = this.character.getBody();
+
+        this.scene.physics.collide(balloon, this.ceiling, () => {
+            body.setVelocityY(120);
+        });
+    }
+
+    protected handleLeftMovement() {
+        const body = this.character.getBody();
+        this.isOnGround ? body.setVelocityX(-this.walkSpeed) : body.setAccelerationX(-this.flapAccelerationX);
+    }
+
+    protected handleRightMovement() {
+        const body = this.character.getBody();
+        this.isOnGround ? body.setVelocityX(this.walkSpeed) : body.setAccelerationX(this.flapAccelerationX);
+    }
+
+    protected handleFlapMovement(time: number) {
+        const body = this.character.getBody();
+        this.flapTime = time + this.flapRate;
+        // this.character.getCharacterSprite().setState(CharacterState.flapping);
+        body.setVelocityY(-this.flapVelocityY);
+    }
+
+    abstract getInputState(): InputState;
+
+    update(time: number, delta: number) {
+        if (!this.character) return;
+
+        this.handleFloorCollision();
+        this.handleCeilingCollision();
+
+        const body = this.character.getBody();
+
+        // Reset velocity & acceleration
+        if (this.isOnGround) {
+            body.setVelocityX(0).setAccelerationX(0);
+        } else {
+            body.setAcceleration(0, 0);
+        }
+    }
+};
+
+export class AuthorityController extends CharacterController {
     private inputs: {
-        left: Phaser.Input.Keyboard.Key,
-        right: Phaser.Input.Keyboard.Key,
-        flap: Phaser.Input.Keyboard.Key
+        leftKey: Phaser.Input.Keyboard.Key,
+        rightKey: Phaser.Input.Keyboard.Key,
+        flapKey: Phaser.Input.Keyboard.Key
     };
 
-    private lastFlap = false;
-    private lastLeft = false;
-    private lastRight = false;
+    // Replication toggles
+    private leftReplToggle = false;
+    private rightReplToggle = false;
+    private flapReplToggle = false;
 
-    constructor(private rtcManager: RTCManager, private scene: Phaser.Scene) {
+    constructor(private rtcManager: RTCManager, scene: Phaser.Scene) {
+        super(scene);
+
         this.inputs = {
-            left: this.scene.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.A),
-            right: this.scene.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.D),
-            flap: this.scene.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE)
+            leftKey: this.scene.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.A),
+            rightKey: this.scene.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.D),
+            flapKey: this.scene.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE)
         }
     }
 
-    left() {
-        const left = this.inputs.left.isDown;
+    getInputState(): InputState {
+        if (!this.character) return {};
 
-        if (this.lastLeft !== left) {
-            this.rtcManager.sendDataChannelMessageAll(JSON.stringify({ left }));
-            this.lastLeft = left;
-        }
-
-        return left;
+        return {
+            left: this.inputs.leftKey.isDown,
+            right: this.inputs.rightKey.isDown,
+            flap: this.inputs.flapKey.isDown
+        };
     }
 
-    right() {
-        const right = this.inputs.right.isDown;
+    private getTransform(): Vector {
+        if (!this.character) return { x: 0, y: 0 };
 
-        if (this.lastRight !== right) {
-            this.rtcManager.sendDataChannelMessageAll(JSON.stringify({ right }));
-            this.lastRight = right;
-        }
-
-        return right;
+        return { x: parseFloat(this.character.x.toFixed(2)), y: parseFloat(this.character.y.toFixed(2)) };
     }
 
-    flap() {
-        const flap = Phaser.Input.Keyboard.JustDown(this.inputs.flap);
+    private getVelocity(): Vector {
+        if (!this.character) return { x: 0, y: 0 };
 
-        if (this.lastFlap !== flap) {
-            this.rtcManager.sendDataChannelMessageAll(JSON.stringify({ flap }));
-            this.lastFlap = flap;
+        const body = this.character.getBody();
+        return { x: parseFloat(body.velocity.x.toFixed(2)), y: parseFloat(body.velocity.y.toFixed(2)) }
+    }
+
+    private replicateMovement() {
+        const transform = this.getTransform();
+        const velocity = this.getVelocity();
+        const input = this.getInputState();
+        const timestamp = performance.timeOrigin + performance.now();
+        this.rtcManager.sendDataChannelMessageAll(JSON.stringify({ timestamp, transform, velocity, input }));
+    }
+
+    update(time: number, delta: number) {
+        super.update(time, delta);
+
+        if (!this.character) return;
+
+        // Left movement
+        const isLeftDown = this.inputs.leftKey.isDown;
+
+        if (isLeftDown) {
+            this.handleLeftMovement();
         }
 
-        return flap;
+        // Left replication
+        if (this.leftReplToggle !== isLeftDown) {
+            this.leftReplToggle = isLeftDown;
+            this.replicateMovement();
+        }
+
+        // Right movement
+        const isRightDown = this.inputs.rightKey.isDown;
+
+        if (isRightDown) {
+            this.handleRightMovement();
+        }
+
+        // Right replication
+        if (this.rightReplToggle !== isRightDown) {
+            this.rightReplToggle = isRightDown;
+            this.replicateMovement();
+        }
+
+        // Flap movement
+        const isFlapDown = this.inputs.flapKey.isDown;
+
+        if (isFlapDown && time > this.flapTime) {
+            this.handleFlapMovement(time);
+        }
+
+        // Flap replication
+        if (this.flapReplToggle !== isFlapDown) {
+            this.flapReplToggle = isFlapDown;
+            this.replicateMovement();
+        }
     }
 }
 
-export class RemotePlayerController implements CharacterController {
-    private isFlapping = false;
-    private isMovingLeft = false;
-    private isMovingRight = false;
+export class SimulatedProxyController extends CharacterController {
+    private flap = false;
+    private left = false;
+    private right = false;
+    private lastUpdateTime = 0;
 
-    constructor(private rtcManager: RTCManager, private client: Client) {
+    constructor(private rtcManager: RTCManager, scene: Phaser.Scene, private client: Client) {
+        super(scene);
+
         if (client.dataChannel) {
             client.dataChannel.addEventListener('message', event => {
                 const data = JSON.parse(event.data);
-                console.log(`RemotePlayerController: received message event`, data);
+                const timestamp = performance.timeOrigin + performance.now();
+                const latency = timestamp - data.timestamp;
+                console.log(`RemotePlayerController: received message event`, latency, data);
 
-                if (data.left !== undefined && data.left !== null) {
-                    this.isMovingLeft = data.left;
+                if (data.input.left !== undefined && data.input.left !== null) {
+                    this.left = data.input.left;
                 }
 
-                if (data.right !== undefined && data.right !== null) {
-                    this.isMovingRight = data.right;
+                if (data.input.right !== undefined && data.input.right !== null) {
+                    this.right = data.input.right;
                 }
 
-                if (data.flap !== undefined && data.flap !== null) {
-                    this.isFlapping = data.flap;
+                if (data.input.flap !== undefined && data.input.flap !== null) {
+                    this.flap = data.input.flap;
                 }
+
+                // this.correctPosition(data.transform);
+                // this.correctPhysics(data.velocity);
+                this.lastUpdateTime = timestamp;
             });
         }
     }
 
-    left() {
-        return this.isMovingLeft;
+    private correctPosition(newPosition: Vector) {
+        if (!this.character) return;
+
+        this.character.setPosition(newPosition.x, newPosition.y);
     }
 
-    right() {
-        return this.isMovingRight;
+    private correctPhysics(newVelocity: Vector) {
+        if (!this.character) return;
+
+        const body = this.character.getBody();
+        body.setVelocity(newVelocity.x, newVelocity.y);
     }
 
-    flap() {
-        if (this.isFlapping) {
-            this.isFlapping = false;
-            return true;
+    getInputState(): InputState {
+        if (!this.character) return {};
+
+        return {
+            left: this.left,
+            right: this.right,
+            flap: this.flap
+        };
+    }
+
+    update(time: number, delta: number) {
+        super.update(time, delta);
+
+        if (!this.character) return;
+        // Left movement
+        const isLeftDown = this.left;
+
+        if (isLeftDown) {
+            this.handleLeftMovement();
         }
 
-        return this.isFlapping;
+        // Right movement
+        const isRightDown = this.right;
+
+        if (isRightDown) {
+            this.handleRightMovement();
+        }
+
+        // Flap movement
+        const isFlapDown = this.flap;
+
+        if (isFlapDown && time > this.flapTime) {
+            this.handleFlapMovement(time);
+        }
     }
 }

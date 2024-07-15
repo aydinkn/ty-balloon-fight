@@ -3,7 +3,7 @@
 import 'phaser';
 import { Character, CharacterType } from '@/app/game/character';
 import { RTCManager } from "@/app/game/rtcManager";
-import { CharacterController, LocalPlayerController, RemotePlayerController } from '@/app/game/characterController';
+import { CharacterController, AuthorityController, SimulatedProxyController } from '@/app/game/characterController';
 
 export interface GameBootData {
     nickName: string;
@@ -29,7 +29,7 @@ export class Game extends Phaser.Scene {
 
             if (!client) return;
 
-            const controller = new RemotePlayerController(this.rtcManager, client);
+            const controller = new SimulatedProxyController(this.rtcManager, this, client);
             const player = this.spawnCharacter(CharacterType.blue, controller);
             player.setNickName('Simulated Proxy');
         });
@@ -54,7 +54,7 @@ export class Game extends Phaser.Scene {
             .setOrigin(0, 0).setName('ceiling');
         this.physics.add.existing(ceiling, true);
 
-        const controller = new LocalPlayerController(this.rtcManager, this);
+        const controller = new AuthorityController(this.rtcManager, this);
         this.player = this.spawnCharacter(CharacterType.red, controller);
         this.player.setNickName(this.gameBootData.nickName);
     }
