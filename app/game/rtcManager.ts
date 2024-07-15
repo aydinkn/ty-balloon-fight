@@ -11,8 +11,8 @@ export interface Client {
 };
 
 export class RTCManager extends EventTarget {
-    configs: RTCManagerConfigs;
-    clients: { [id: string]: Client } = {};
+    private configs: RTCManagerConfigs;
+    private clients: { [id: string]: Client } = {};
 
     constructor(configs: RTCManagerConfigs) {
         super();
@@ -57,9 +57,30 @@ export class RTCManager extends EventTarget {
 
         const newDataChannel = dataChannel ?? client.peerConnection.createDataChannel('controller');
         client.dataChannel = newDataChannel;
+        this.registerDataChannelEventsForClient(clientId);
+    }
+
+    private registerDataChannelEventsForClient(clientId: string) {
+        const client = this.clients[clientId];
+
+        if (!client || !client.dataChannel) return;
 
         client.dataChannel.addEventListener('open', event => {
             console.log(`WebRTC: data channel opened for client ${clientId}`);
+
+            this.dispatchEvent(new CustomEvent('dataChannelOpen', { detail: { clientId } }));
+        });
+
+        client.dataChannel.addEventListener('message', event => {
+            console.log(`WebRTC: data channel message for client ${clientId}, message: ${event.data}`);
+        });
+
+        client.dataChannel.addEventListener('closing', event => {
+            console.log(`WebRTC: data channel closing for client ${clientId}`);
+        });
+
+        client.dataChannel.addEventListener('error', event => {
+            console.log(`WebRTC: data channel error for client ${clientId}`);
         });
     }
 
@@ -71,7 +92,7 @@ export class RTCManager extends EventTarget {
             this.clients[client.id] = { id: client.id, peerConnection };
             this.setDataChannelForClient(client.id);
 
-            this.registerEventsForClient(client.id, peerConnection);
+            this.registerPeerConnectionEventsForClient(client.id, peerConnection);
             const offer = await this.createOfferForLocalDescription(peerConnection);
             socket.emit('offer', { clientId: client.id, offer });
         }
@@ -91,7 +112,7 @@ export class RTCManager extends EventTarget {
 
         const peerConnection = this.createRTCPeerConnection();
         this.clients[clientId] = { id: clientId, peerConnection };
-        this.registerEventsForClient(clientId, peerConnection);
+        this.registerPeerConnectionEventsForClient(clientId, peerConnection);
         await peerConnection.setRemoteDescription(offer);
         const answer = await this.createAnswerForLocalDescription(peerConnection);
         socket.emit('answer', { clientId, answer });
@@ -107,7 +128,7 @@ export class RTCManager extends EventTarget {
         await rtcClient.peerConnection.addIceCandidate(candidate);
     };
 
-    private registerEventsForClient(clientId: string, peerConnection: RTCPeerConnection) {
+    private registerPeerConnectionEventsForClient(clientId: string, peerConnection: RTCPeerConnection) {
         const client = this.clients[clientId];
 
         peerConnection.addEventListener('icecandidate', event => {
@@ -125,5 +146,19 @@ export class RTCManager extends EventTarget {
         peerConnection.addEventListener('connectionstatechange', event => {
             console.log(`WebRTC: connection state changed for client: ${clientId}, new state: ${peerConnection.connectionState}`);
         });
+    }
+
+    getClient(id: string) {
+        return this.clients[id];
+    }
+
+    sendDataChannelMessageAll(message: any) {
+        for (const clientId of Object.keys(this.clients)) {
+            const client = this.clients[clientId];
+
+            if (!client.dataChannel) continue;
+
+            client.dataChannel.send(message);
+        }
     }
 }

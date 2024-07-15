@@ -3,6 +3,7 @@
 import 'phaser';
 import { Character, CharacterType } from '@/app/game/character';
 import { RTCManager } from "@/app/game/rtcManager";
+import { CharacterController, LocalPlayerController, RemotePlayerController } from '@/app/game/characterController';
 
 export interface GameBootData {
     nickName: string;
@@ -10,9 +11,9 @@ export interface GameBootData {
 }
 
 export class Game extends Phaser.Scene {
-    gameBootData!: GameBootData;
-    player!: Character;
-    rtcManager!: RTCManager;
+    private gameBootData!: GameBootData;
+    private player!: Character;
+    private rtcManager!: RTCManager;
 
     constructor() {
         super({ key: 'gameplay' });
@@ -20,7 +21,18 @@ export class Game extends Phaser.Scene {
 
     init(data: GameBootData) {
         this.gameBootData = data;
+
         this.rtcManager = new RTCManager({ roomName: this.gameBootData.roomName });
+        this.rtcManager.addEventListener('dataChannelOpen', event => {
+            const customEvent = event as CustomEvent;
+            const client = this.rtcManager.getClient(customEvent.detail.clientId);
+
+            if (!client) return;
+
+            const controller = new RemotePlayerController(this.rtcManager, client);
+            const player = this.spawnCharacter(CharacterType.blue, controller);
+            player.setNickName('Simulated Proxy');
+        });
     }
 
     preload() {
@@ -42,8 +54,8 @@ export class Game extends Phaser.Scene {
             .setOrigin(0, 0).setName('ceiling');
         this.physics.add.existing(ceiling, true);
 
-        const spawnArea: Phaser.Types.Math.Vector2Like = { x: Phaser.Math.Between(32, 980), y: floor.y - 38 };
-        this.player = new Character(this, spawnArea.x, spawnArea.y, CharacterType.red);
+        const controller = new LocalPlayerController(this.rtcManager, this);
+        this.player = this.spawnCharacter(CharacterType.red, controller);
         this.player.setNickName(this.gameBootData.nickName);
     }
 
@@ -51,7 +63,10 @@ export class Game extends Phaser.Scene {
 
     }
 
-    start() {
-        
+    private spawnCharacter(characterType: number, controller: CharacterController) {
+        const spawnArea: Phaser.Types.Math.Vector2Like = { x: Phaser.Math.Between(32, 1024 - 32), y: 748 - 38 };
+        const character = new Character(this, spawnArea.x, spawnArea.y, characterType, controller);
+
+        return character;
     }
 };

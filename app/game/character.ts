@@ -1,14 +1,14 @@
 import 'phaser';
+import { CharacterController } from '@/app/game/characterController';
 
-export const CharacterType = {
-    'red': 0,
-    'blue': 1
+export enum CharacterType {
+    red,
+    blue
 }
 
-interface CharacterInput {
-    'left': Phaser.Input.Keyboard.Key;
-    'right': Phaser.Input.Keyboard.Key;
-    'flap': Phaser.Input.Keyboard.Key;
+export enum CharacterNetRole {
+    Authority,
+    SimulatedProxy
 };
 
 const CharacterState = {
@@ -52,17 +52,18 @@ export class Character extends Phaser.GameObjects.Container {
     private flapRate = 300;
     private characterSprite!: CharacterSprite;
     private balloon!: Balloon;
-    private inputs!: CharacterInput;
     private nickNameText!: Phaser.GameObjects.Text;
     private ceiling: Phaser.GameObjects.GameObject | null;
     private floor: Phaser.GameObjects.GameObject | null;
     private isOnGround = false;
     private characterType: number;
+    private controller: CharacterController;
 
-    constructor(scene: Phaser.Scene, x: number, y: number, characterType: number) {
+    constructor(scene: Phaser.Scene, x: number, y: number, characterType: CharacterType, controller: CharacterController) {
         super(scene, x, y);
 
         this.characterType = characterType;
+        this.controller = controller;
         this.onSceneUpdate = this.onSceneUpdate.bind(this);
         this.floor = scene.children.getByName('floor');
         this.ceiling = scene.children.getByName('ceiling');
@@ -73,7 +74,6 @@ export class Character extends Phaser.GameObjects.Container {
         this.setupNickNameText();
         this.setupCharacterSprite();
         this.setupBalloon();
-        this.setupInputs();
         this.setupPhysics();
 
         scene.events.on('update', this.onSceneUpdate);
@@ -93,14 +93,6 @@ export class Character extends Phaser.GameObjects.Container {
     private setupBalloon() {
         this.balloon = new Balloon(this.scene, 0, 0, 6 * this.scaleFactor, 0, -7 * this.scaleFactor);
         this.add(this.balloon);
-    }
-
-    private setupInputs() {
-        this.inputs = {
-            left: this.scene.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.A),
-            right: this.scene.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.D),
-            flap: this.scene.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE)
-        };
     }
 
     private setupPhysics() {
@@ -145,11 +137,11 @@ export class Character extends Phaser.GameObjects.Container {
             body.setAcceleration(0, 0);
         }
 
-        if (this.inputs.right.isDown) {
+        if (this.controller.right()) {
             this.isOnGround ? body.setVelocityX(this.walkSpeed) : body.setAccelerationX(this.flapAccelerationX);
         }
 
-        if (this.inputs.left.isDown) {
+        if (this.controller.left()) {
             this.isOnGround ? body.setVelocityX(-this.walkSpeed) : body.setAccelerationX(-this.flapAccelerationX);
         }
 
@@ -169,7 +161,7 @@ export class Character extends Phaser.GameObjects.Container {
         }
 
         // Flapping
-        if (time > this.flapTime && Phaser.Input.Keyboard.JustDown(this.inputs.flap)) {
+        if (time > this.flapTime && this.controller.flap()) {
             this.flapTime = time + this.flapRate;
             this.characterSprite.setState(CharacterState.flapping);
             body.setVelocityY(-this.flapVelocityY);
@@ -204,9 +196,9 @@ export class Character extends Phaser.GameObjects.Container {
 }
 
 class CharacterSprite extends Phaser.GameObjects.Sprite {
-    private characterType: number;
+    private characterType: CharacterType;
 
-    constructor(scene: Phaser.Scene, x: number, y: number, texture: string | Phaser.Textures.Texture, characterType: number) {
+    constructor(scene: Phaser.Scene, x: number, y: number, texture: string | Phaser.Textures.Texture, characterType: CharacterType) {
         super(scene, x, y, texture);
 
         this.characterType = characterType;
