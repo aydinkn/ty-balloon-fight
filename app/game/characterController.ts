@@ -8,9 +8,9 @@ interface Vector {
 }
 
 interface InputState {
-    left?: boolean;
-    right?: boolean;
-    flap?: boolean;
+    left: boolean;
+    right: boolean;
+    flap: boolean;
 };
 
 export abstract class CharacterController {
@@ -27,14 +27,6 @@ export abstract class CharacterController {
     constructor(protected scene: Phaser.Scene) {
         this.floor = scene.children.getByName('floor');
         this.ceiling = scene.children.getByName('ceiling');
-    }
-
-    setCharacter(character: Character) {
-        this.character = character;
-    }
-
-    isOnTheGround() {
-        return this.isOnGround;
     }
 
     protected handleFloorCollision() {
@@ -62,38 +54,84 @@ export abstract class CharacterController {
     }
 
     protected handleLeftMovement() {
+        this.character.setLeftFacing();
         const body = this.character.getBody();
         this.isOnGround ? body.setVelocityX(-this.walkSpeed) : body.setAccelerationX(-this.flapAccelerationX);
     }
 
     protected handleRightMovement() {
+        this.character.setRightFacing();
         const body = this.character.getBody();
         this.isOnGround ? body.setVelocityX(this.walkSpeed) : body.setAccelerationX(this.flapAccelerationX);
     }
 
     protected handleFlapMovement(time: number) {
-        const body = this.character.getBody();
         this.flapTime = time + this.flapRate;
-        // this.character.getCharacterSprite().setState(CharacterState.flapping);
+        this.character.setState(CharacterState.flapping);
+        const body = this.character.getBody();
         body.setVelocityY(-this.flapVelocityY);
     }
 
+    protected resetVelocityAcceleration() {
+        const body = this.character.getBody();
+
+        if (this.isOnGround) {
+            body.setVelocityX(0).setAccelerationX(0);
+        } else {
+            body.setAcceleration(0, 0);
+        }
+    }
+
+    protected handleIdlingWalkingState() {
+        const body = this.character.getBody();
+        const hasXVelocity = Math.abs(body.velocity.x) > 1;
+        const hasYVelocity = Math.abs(body.velocity.y) > 1;
+
+        if ((this.character.state !== CharacterState.idling)
+            && this.isOnGround && !hasXVelocity && !hasYVelocity) {
+            this.character.setState(CharacterState.idling);
+        }
+
+        if ((this.character.state !== CharacterState.walking)
+            && this.isOnGround && hasXVelocity && !hasYVelocity) {
+            this.character.setState(CharacterState.walking);
+        }
+    }
+
     abstract getInputState(): InputState;
+
+    setCharacter(character: Character) {
+        this.character = character;
+    }
+
+    isOnTheGround() {
+        return this.isOnGround;
+    }
+
+    private handleMovement(time: number) {
+        const { left, right, flap } = this.getInputState();
+
+        if (left) {
+            this.handleLeftMovement();
+        }
+
+        if (right) {
+            this.handleRightMovement();
+        }
+
+        if (flap && time > this.flapTime) {
+            this.handleFlapMovement(time);
+        }
+    }
 
     update(time: number, delta: number) {
         if (!this.character) return;
 
         this.handleFloorCollision();
         this.handleCeilingCollision();
-
-        const body = this.character.getBody();
-
-        // Reset velocity & acceleration
-        if (this.isOnGround) {
-            body.setVelocityX(0).setAccelerationX(0);
-        } else {
-            body.setAcceleration(0, 0);
-        }
+        this.resetVelocityAcceleration();
+        this.handleMovement(time);
+        this.handleIdlingWalkingState();
     }
 };
 
@@ -120,7 +158,7 @@ export class AuthorityController extends CharacterController {
     }
 
     getInputState(): InputState {
-        if (!this.character) return {};
+        if (!this.character) return { left: false, right: false, flap: false };
 
         return {
             left: this.inputs.leftKey.isDown,
@@ -155,42 +193,20 @@ export class AuthorityController extends CharacterController {
 
         if (!this.character) return;
 
-        // Left movement
-        const isLeftDown = this.inputs.leftKey.isDown;
+        const { left, right, flap } = this.getInputState();
 
-        if (isLeftDown) {
-            this.handleLeftMovement();
-        }
-
-        // Left replication
-        if (this.leftReplToggle !== isLeftDown) {
-            this.leftReplToggle = isLeftDown;
+        if (this.leftReplToggle !== left) {
+            this.leftReplToggle = left;
             this.replicateMovement();
         }
 
-        // Right movement
-        const isRightDown = this.inputs.rightKey.isDown;
-
-        if (isRightDown) {
-            this.handleRightMovement();
-        }
-
-        // Right replication
-        if (this.rightReplToggle !== isRightDown) {
-            this.rightReplToggle = isRightDown;
+        if (this.rightReplToggle !== right) {
+            this.rightReplToggle = right;
             this.replicateMovement();
         }
 
-        // Flap movement
-        const isFlapDown = this.inputs.flapKey.isDown;
-
-        if (isFlapDown && time > this.flapTime) {
-            this.handleFlapMovement(time);
-        }
-
-        // Flap replication
-        if (this.flapReplToggle !== isFlapDown) {
-            this.flapReplToggle = isFlapDown;
+        if (this.flapReplToggle !== flap) {
+            this.flapReplToggle = flap;
             this.replicateMovement();
         }
     }
@@ -210,19 +226,12 @@ export class SimulatedProxyController extends CharacterController {
                 const data = JSON.parse(event.data);
                 const timestamp = performance.timeOrigin + performance.now();
                 const latency = timestamp - data.timestamp;
+
                 console.log(`RemotePlayerController: received message event`, latency, data);
 
-                if (data.input.left !== undefined && data.input.left !== null) {
-                    this.left = data.input.left;
-                }
-
-                if (data.input.right !== undefined && data.input.right !== null) {
-                    this.right = data.input.right;
-                }
-
-                if (data.input.flap !== undefined && data.input.flap !== null) {
-                    this.flap = data.input.flap;
-                }
+                this.left = data.input.left;
+                this.right = data.input.right;
+                this.flap = data.input.flap;
 
                 // this.correctPosition(data.transform);
                 // this.correctPhysics(data.velocity);
@@ -245,38 +254,12 @@ export class SimulatedProxyController extends CharacterController {
     }
 
     getInputState(): InputState {
-        if (!this.character) return {};
+        if (!this.character) return { left: false, right: false, flap: false };
 
         return {
             left: this.left,
             right: this.right,
             flap: this.flap
         };
-    }
-
-    update(time: number, delta: number) {
-        super.update(time, delta);
-
-        if (!this.character) return;
-        // Left movement
-        const isLeftDown = this.left;
-
-        if (isLeftDown) {
-            this.handleLeftMovement();
-        }
-
-        // Right movement
-        const isRightDown = this.right;
-
-        if (isRightDown) {
-            this.handleRightMovement();
-        }
-
-        // Flap movement
-        const isFlapDown = this.flap;
-
-        if (isFlapDown && time > this.flapTime) {
-            this.handleFlapMovement(time);
-        }
     }
 }

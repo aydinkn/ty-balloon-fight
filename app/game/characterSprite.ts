@@ -11,7 +11,6 @@ export class CharacterSprite extends Phaser.GameObjects.Sprite {
         this.characterType = characterType;
         this.animKeys = { idling: 'idle', walking: 'walk', flapping: 'flap', death: 'death' };
         this.setupAnimations();
-        this.setState(CharacterState.idling);
     }
 
     private setupAnimations() {
