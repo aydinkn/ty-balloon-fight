@@ -67,7 +67,7 @@ export class Character extends Phaser.GameObjects.Container {
         this.scene.physics.add.existing(this, false);
         const body = this.getBody();
         body.offset.y = 6 * this.scaleFactor;
-        body.setMaxVelocityX(250);
+        body.setMaxVelocity(250);
     }
 
     private onSceneUpdate(time: number, delta: number) {

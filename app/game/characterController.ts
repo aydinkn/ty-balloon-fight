@@ -17,12 +17,12 @@ export abstract class CharacterController {
     protected character!: Character;
     protected isOnGround = false;
     protected walkSpeed = 100;
-    protected flapAccelerationX = 150;
+    protected flapAccelerationX = 180;
     protected flapTime = 0;
-    protected flapRate = 300;
-    protected flapVelocityY = 150;
-    protected ceiling: Phaser.GameObjects.GameObject | null;
+    protected flapRate = 200;
+    protected flapVelocityY = 120;
     protected floor: Phaser.GameObjects.GameObject | null;
+    protected ceiling: Phaser.GameObjects.GameObject | null;
 
     constructor(protected scene: Phaser.Scene) {
         this.floor = scene.children.getByName('floor');
@@ -43,47 +43,47 @@ export abstract class CharacterController {
         if (!this.ceiling) return;
 
         const balloon = this.character.getBalloon();
-
-        if (!balloon) return;
-
         const body = this.character.getBody();
 
         this.scene.physics.collide(balloon, this.ceiling, () => {
-            body.setVelocityY(120);
+            body.setVelocityY(180);
         });
-    }
-
-    protected handleLeftMovement() {
-        this.character.setLeftFacing();
-        const body = this.character.getBody();
-        this.isOnGround ? body.setVelocityX(-this.walkSpeed) : body.setAccelerationX(-this.flapAccelerationX);
-    }
-
-    protected handleRightMovement() {
-        this.character.setRightFacing();
-        const body = this.character.getBody();
-        this.isOnGround ? body.setVelocityX(this.walkSpeed) : body.setAccelerationX(this.flapAccelerationX);
-    }
-
-    protected handleFlapMovement(time: number) {
-        this.flapTime = time + this.flapRate;
-        this.character.setState(CharacterState.flapping);
-        const body = this.character.getBody();
-        body.setVelocityY(-this.flapVelocityY);
     }
 
     protected resetVelocityAcceleration() {
         const body = this.character.getBody();
 
         if (this.isOnGround) {
-            body.setVelocityX(0).setAccelerationX(0);
+            body.setVelocityX(0);
         } else {
-            body.setAcceleration(0, 0);
+            body.setAcceleration(0);
         }
     }
 
-    protected handleIdlingWalkingState() {
+    protected handleMovement(time: number) {
+        const { left, right, flap } = this.getInputState();
         const body = this.character.getBody();
+
+        if (left) {
+            this.character.setLeftFacing();
+            this.isOnGround ? body.setVelocityX(-this.walkSpeed) : body.setAccelerationX(-this.flapAccelerationX);
+        }
+
+        if (right) {
+            this.character.setRightFacing();
+            this.isOnGround ? body.setVelocityX(this.walkSpeed) : body.setAccelerationX(this.flapAccelerationX);
+        }
+
+        if (flap && time > this.flapTime) {
+            this.flapTime = time + this.flapRate;
+            this.character.setState(CharacterState.flapping);
+            const newVelocityY = body.velocity.y <= 0 ? this.flapVelocityY
+                : this.flapVelocityY - body.velocity.y;
+            // const newVelocityY = this.flapVelocityY;
+
+            body.setVelocityY(-newVelocityY);
+        }
+
         const hasXVelocity = Math.abs(body.velocity.x) > 1;
         const hasYVelocity = Math.abs(body.velocity.y) > 1;
 
@@ -104,26 +104,6 @@ export abstract class CharacterController {
         this.character = character;
     }
 
-    isOnTheGround() {
-        return this.isOnGround;
-    }
-
-    private handleMovement(time: number) {
-        const { left, right, flap } = this.getInputState();
-
-        if (left) {
-            this.handleLeftMovement();
-        }
-
-        if (right) {
-            this.handleRightMovement();
-        }
-
-        if (flap && time > this.flapTime) {
-            this.handleFlapMovement(time);
-        }
-    }
-
     update(time: number, delta: number) {
         if (!this.character) return;
 
@@ -131,7 +111,6 @@ export abstract class CharacterController {
         this.handleCeilingCollision();
         this.resetVelocityAcceleration();
         this.handleMovement(time);
-        this.handleIdlingWalkingState();
     }
 };
 
@@ -190,8 +169,6 @@ export class AuthorityController extends CharacterController {
 
     update(time: number, delta: number) {
         super.update(time, delta);
-
-        if (!this.character) return;
 
         const { left, right, flap } = this.getInputState();
 
