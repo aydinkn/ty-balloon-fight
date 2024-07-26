@@ -66,21 +66,7 @@ export class RTCManager extends EventTarget {
         if (!client || !client.dataChannel) return;
 
         client.dataChannel.addEventListener('open', event => {
-            console.log(`WebRTC: data channel opened for client ${clientId}`);
-
             this.dispatchEvent(new CustomEvent('dataChannelOpen', { detail: { clientId } }));
-        });
-
-        client.dataChannel.addEventListener('message', event => {
-            console.log(`WebRTC: data channel message for client ${clientId}, message: ${event.data}`);
-        });
-
-        client.dataChannel.addEventListener('closing', event => {
-            console.log(`WebRTC: data channel closing for client ${clientId}`);
-        });
-
-        client.dataChannel.addEventListener('error', event => {
-            console.log(`WebRTC: data channel error for client ${clientId}`);
         });
     }
 
@@ -142,10 +128,6 @@ export class RTCManager extends EventTarget {
 
             this.setDataChannelForClient(clientId, event.channel);
         });
-
-        peerConnection.addEventListener('connectionstatechange', event => {
-            console.log(`WebRTC: connection state changed for client: ${clientId}, new state: ${peerConnection.connectionState}`);
-        });
     }
 
     getClient(id: string) {
@@ -156,7 +138,7 @@ export class RTCManager extends EventTarget {
         for (const clientId of Object.keys(this.clients)) {
             const client = this.clients[clientId];
 
-            if (!client.dataChannel) continue;
+            if (!client.dataChannel || client.dataChannel.readyState !== "open") continue;
 
             client.dataChannel.send(message);
         }
