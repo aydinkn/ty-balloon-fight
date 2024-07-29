@@ -99,7 +99,7 @@ app.prepare().then(() => {
 
     socket.on('offer', ({ clientId, offer }) => {
       console.log('Server: received command offer');
-      socket.to(clientId).emit('offer', { clientId: socket.id, offer });
+      socket.to(clientId).emit('offer', { clientId: socket.id, data: socket.data, offer });
     });
 
     socket.on('answer', ({ clientId, answer }) => {

@@ -6,6 +6,7 @@ export interface RTCManagerConfigs {
 
 export interface Client {
     id: string;
+    data: { nickName: string };
     peerConnection: RTCPeerConnection;
     dataChannel?: RTCDataChannel;
 };
@@ -75,7 +76,7 @@ export class RTCManager extends EventTarget {
             if (this.clients[client.id]) continue;
 
             const peerConnection = this.createRTCPeerConnection();
-            this.clients[client.id] = { id: client.id, peerConnection };
+            this.clients[client.id] = { id: client.id, data: client.data, peerConnection };
             this.setDataChannelForClient(client.id);
 
             this.registerPeerConnectionEventsForClient(client.id, peerConnection);
@@ -91,13 +92,13 @@ export class RTCManager extends EventTarget {
         await this.clients[clientId].peerConnection.setRemoteDescription(remoteDesc);
     }
 
-    private async offer({ clientId, offer }: { clientId: string, offer: RTCSessionDescriptionInit }) {
+    private async offer({ clientId, data, offer }: { clientId: string, data: any, offer: RTCSessionDescriptionInit }) {
         if (this.clients[clientId]) {
             this.clients[clientId].peerConnection.close();
         }
 
         const peerConnection = this.createRTCPeerConnection();
-        this.clients[clientId] = { id: clientId, peerConnection };
+        this.clients[clientId] = { id: clientId, data, peerConnection };
         this.registerPeerConnectionEventsForClient(clientId, peerConnection);
         await peerConnection.setRemoteDescription(offer);
         const answer = await this.createAnswerForLocalDescription(peerConnection);

@@ -12,7 +12,6 @@ export interface GameBootData {
 
 export class Game extends Phaser.Scene {
     private gameBootData!: GameBootData;
-    private player!: Character;
     private rtcManager!: RTCManager;
 
     constructor() {
@@ -31,7 +30,7 @@ export class Game extends Phaser.Scene {
 
             const controller = new CharacterController(this, this.rtcManager, NetRole.SimulatedProxy, client);
             const player = this.spawnCharacter(CharacterType.blue, controller);
-            player.setNickName('Simulated Proxy');
+            player.setNickName(client.data.nickName);
         });
     }
 
@@ -55,8 +54,8 @@ export class Game extends Phaser.Scene {
         this.physics.add.existing(ceiling, true);
 
         const controller = new CharacterController(this, this.rtcManager, NetRole.Authority);
-        this.player = this.spawnCharacter(CharacterType.red, controller);
-        this.player.setNickName(this.gameBootData.nickName);
+        const player = this.spawnCharacter(CharacterType.red, controller);
+        player.setNickName(this.gameBootData.nickName);
     }
 
     update(time: number, delta: number) {
@@ -64,9 +63,13 @@ export class Game extends Phaser.Scene {
     }
 
     private spawnCharacter(characterType: number, controller: CharacterController) {
-        const spawnArea: Phaser.Types.Math.Vector2Like = { x: Phaser.Math.Between(32, 1024 - 32), y: 748 - 38 };
-        const character = new Character(this, spawnArea.x, spawnArea.y, characterType, controller);
+        const offset = 38;
+        const { right, bottom } = this.physics.world.bounds;
+        const spawnArea: Phaser.Types.Math.Vector2Like = {
+            x: Phaser.Math.Between(offset, right - offset),
+            y: bottom - offset - 24
+        };
 
-        return character;
+        return new Character(this, spawnArea.x, spawnArea.y, characterType, controller);
     }
 };
