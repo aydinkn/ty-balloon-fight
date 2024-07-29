@@ -20,6 +20,8 @@ export const CharacterState = {
 };
 
 export class Character extends Phaser.GameObjects.Container {
+    private maxVelocity = 250;
+    private dragX = 50;
     private scaleFactor = 3;
     private characterSprite!: CharacterSprite;
     private balloon!: Balloon;
@@ -67,7 +69,8 @@ export class Character extends Phaser.GameObjects.Container {
         this.scene.physics.add.existing(this, false);
         const body = this.getBody();
         body.offset.y = 6 * this.scaleFactor;
-        body.setMaxVelocity(250);
+        body.setMaxVelocity(this.maxVelocity);
+        body.setDragX(this.dragX);
     }
 
     private onSceneUpdate(time: number, delta: number) {

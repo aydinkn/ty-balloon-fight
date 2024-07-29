@@ -29,7 +29,6 @@ export class CharacterController {
         rightKey: Phaser.Input.Keyboard.Key | boolean,
         flapKey: Phaser.Input.Keyboard.Key | boolean
     };
-    private replToggles = { left: false, right: false, flap: false };
     private peerTransform: Phaser.Types.Math.Vector2Like = { x: 0, y: 0 };
     private peerVelocity: Phaser.Types.Math.Vector2Like = { x: 0, y: 0 };
     private lastUpdateTime = 0;
@@ -54,11 +53,11 @@ export class CharacterController {
                     const timestamp = performance.timeOrigin + performance.now();
                     this.peerTransform = data.transform;
                     this.peerVelocity = data.velocity;
-                    // this.inputs = {
-                    //     leftKey: data.input.left,
-                    //     rightKey: data.input.right,
-                    //     flapKey: data.input.flap
-                    // };
+                    this.inputs = {
+                        leftKey: data.input.left,
+                        rightKey: data.input.right,
+                        flapKey: data.input.flap
+                    };
                     this.lastUpdateTime = timestamp;
                 });
             }
@@ -126,7 +125,7 @@ export class CharacterController {
         const body = this.character.getBody();
 
         if (this.isOnGround) {
-            body.setVelocityX(0);
+            body.setAcceleration(0).setVelocityX(0);
         } else {
             body.setAcceleration(0);
         }
@@ -172,7 +171,6 @@ export class CharacterController {
             this.character.setState(CharacterState.flapping);
             const newVelocityY = body.velocity.y <= 0 ? this.flapVelocityY
                 : this.flapVelocityY - body.velocity.y;
-            // const newVelocityY = this.flapVelocityY;
 
             body.setVelocityY(-newVelocityY);
         }
