@@ -213,13 +213,14 @@ export class CharacterController {
         const body = this.character.getBody();
         body.setVelocity(predictedVelocityX, predictedVelocityY);
 
-        // if (predictedTransformX >= this.scene.physics.world.bounds.right + body.halfWidth) {
-        //     this.character.x = predictedTransformX - this.scene.physics.world.bounds.right;
-        // } else if (predictedTransformX <= this.scene.physics.world.bounds.left - body.halfWidth) {
-        //     this.character.x = this.scene.physics.world.bounds.left - predictedTransformX;
-        // }
+        const distance = Phaser.Math.Difference(this.character.x, predictedTransformX);
+
+        if (distance >= body.world.bounds.width - body.width) {
+            this.character.x = predictedTransformX;
+        } else {
+            this.character.x = Phaser.Math.Interpolation.Linear([this.character.x, predictedTransformX], .1);
+        }
         
-        this.character.x = Phaser.Math.Interpolation.Linear([this.character.x, predictedTransformX], .1);
         this.character.y = Phaser.Math.Interpolation.Linear([this.character.y, predictedTransformY], .1);
     }
 
