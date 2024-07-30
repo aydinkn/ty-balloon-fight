@@ -9,9 +9,10 @@ let isGameInitialized = false;
 export interface GameContainerProps {
     nickName: string;
     roomName: string;
+    team: string;
 }
 
-export const GameContainer = ({ nickName, roomName }: GameContainerProps) => {
+export const GameContainer = ({ nickName, roomName, team }: GameContainerProps) => {
     useEffect(() => {
         if (!isGameInitialized) {
             const gameConfig: Phaser.Types.Core.GameConfig = {
@@ -30,10 +31,10 @@ export const GameContainer = ({ nickName, roomName }: GameContainerProps) => {
             };
             
             const game = new Phaser.Game(gameConfig);
-            game.scene.start('gameplay', { nickName, roomName });
+            game.scene.start('gameplay', { nickName, roomName, team });
             isGameInitialized = true;
         }
-    }, [nickName, roomName]);
+    }, [nickName, roomName, team]);
 
     return (
         <div id='game-container' className="game-container"></div>

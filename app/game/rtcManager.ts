@@ -6,7 +6,7 @@ export interface RTCManagerConfigs {
 
 export interface Client {
     id: string;
-    data: { nickName: string };
+    data: { nickName: string, team: string };
     peerConnection: RTCPeerConnection;
     dataChannel?: RTCDataChannel;
 };

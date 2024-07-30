@@ -4,14 +4,9 @@ import { CharacterSprite } from '@/app/game/characterSprite';
 import { CharacterController } from '@/app/game/characterController';
 
 export enum CharacterType {
-    red,
-    blue
+    red = 'red',
+    blue = 'blue'
 }
-
-export enum CharacterNetRole {
-    Authority,
-    SimulatedProxy
-};
 
 export const CharacterState = {
     'idling': 'idling',
@@ -26,7 +21,7 @@ export class Character extends Phaser.GameObjects.Container {
     private characterSprite!: CharacterSprite;
     private balloon!: Balloon;
     private nickNameText!: Phaser.GameObjects.Text;
-    private characterType: number;
+    private characterType: CharacterType;
     private controller: CharacterController;
 
     constructor(scene: Phaser.Scene, x: number, y: number, characterType: CharacterType, controller: CharacterController) {

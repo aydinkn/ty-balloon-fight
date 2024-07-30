@@ -11,6 +11,13 @@ const handler = app.getRequestHandler();
 const clients = {};
 const rooms = {};
 
+function* genTeam() {
+  while (true) {
+    yield 'red';
+    yield 'blue';
+  }
+}
+
 app.prepare().then(() => {
   const httpServer = createServer(handler);
 
@@ -59,7 +66,7 @@ app.prepare().then(() => {
       }
 
       socket.join(data.roomName);
-      rooms[data.roomName] = { roomName: data.roomName };
+      rooms[data.roomName] = { roomName: data.roomName, teamGenerator: genTeam() };
       socket.emit('createRoomResult', { success: true });
     });
 
@@ -85,6 +92,20 @@ app.prepare().then(() => {
 
       socket.join(roomName);
       socket.emit('joinRoomResult', { success: true, roomName: roomName });
+    });
+
+    socket.on('joinTeam', () => {
+      console.log('Server: received command joinTeam');
+      const joinedRoom = Array.from(socket.rooms).find(r => r !== socket.id);
+
+      if (!joinedRoom || !rooms[joinedRoom]) {
+        socket.emit('joinTeamResult', { success: false, errorCode: 'NOT_JOINED_ANY_ROOM' });
+        return;
+      }
+
+      const team = rooms[joinedRoom].teamGenerator.next().value;
+      socket.data.team = team;
+      socket.emit('joinTeamResult', { success: true, team });
     });
 
     socket.on('getClientsInRoom', async ({ roomName }) => {

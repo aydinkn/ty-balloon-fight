@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from 'next/dynamic'
-import { useEffect, useState, Component } from "react";
+import { useEffect, useState, Component, useCallback } from "react";
 import { socket } from "@/socket.mjs";
 import { NickName } from "@/app/nickNameForm";
 import { Lobby } from "@/app/lobby";
@@ -19,6 +19,14 @@ export default function Home() {
   const [renderGame, setRenderGame] = useState(false);
   const [nickName, setNickName] = useState('');
   const [roomName, setRoomName] = useState('');
+  const [team, setTeam] = useState('');
+
+  const joinTeamResult = useCallback((data: { success: boolean, team: string }) => {
+    if (!data.success) return;
+
+    setTeam(data.team);
+    setRenderGame(true);
+  }, []);
 
   useEffect(() => {
     if (socket.connected) {
@@ -41,6 +49,14 @@ export default function Home() {
       socket.off("disconnect", onDisconnect);
     };
   }, []);
+
+  useEffect(() => {
+    socket.on("joinTeamResult", joinTeamResult);
+
+    return () => {
+      socket.off("joinTeamResult", joinTeamResult);
+    };
+  }, [joinTeamResult]);
 
   const _onSetNickName = (nickName: string) => {
     setNickName(nickName);
@@ -66,7 +82,8 @@ export default function Home() {
   const _onCreateRoom = (roomName: string) => {
     setRoomName(roomName);
     setRenderCreateRoomForm(false);
-    setRenderGame(true);
+    // setRenderGame(true);
+    socket.emit('joinTeam');
   };
 
   const _onClickChangeNickName = () => {
@@ -77,7 +94,8 @@ export default function Home() {
   const _onJoinRoom = (roomName: string) => {
     setRoomName(roomName);
     setRenderLobby(false);
-    setRenderGame(true);
+    // setRenderGame(true);
+    socket.emit('joinTeam');
   };
 
   return (
@@ -92,7 +110,7 @@ export default function Home() {
 
       {renderCreateRoomForm && <CreateRoomForm onClickCancel={_onClickCancelCreateRoom} onCreateRoom={_onCreateRoom} />}
 
-      {renderGame && <GameContainer nickName={nickName} roomName={roomName} />}
+      {renderGame && <GameContainer nickName={nickName} roomName={roomName} team={team} />}
     </div>
   );
 }

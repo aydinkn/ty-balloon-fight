@@ -8,6 +8,7 @@ import { CharacterController, NetRole } from '@/app/game/characterController';
 export interface GameBootData {
     nickName: string;
     roomName: string;
+    team: string;
 }
 
 export class Game extends Phaser.Scene {
@@ -28,8 +29,10 @@ export class Game extends Phaser.Scene {
 
             if (!client) return;
 
+            console.log(client.data.team);
+
             const controller = new CharacterController(this, this.rtcManager, NetRole.SimulatedProxy, client);
-            const player = this.spawnCharacter(CharacterType.blue, controller);
+            const player = this.spawnCharacter(client.data.team as CharacterType, controller);
             player.setNickName(client.data.nickName);
         });
     }
@@ -54,7 +57,7 @@ export class Game extends Phaser.Scene {
         this.physics.add.existing(ceiling, true);
 
         const controller = new CharacterController(this, this.rtcManager, NetRole.Authority);
-        const player = this.spawnCharacter(CharacterType.red, controller);
+        const player = this.spawnCharacter(this.gameBootData.team as CharacterType, controller);
         player.setNickName(this.gameBootData.nickName);
     }
 
@@ -62,7 +65,7 @@ export class Game extends Phaser.Scene {
 
     }
 
-    private spawnCharacter(characterType: number, controller: CharacterController) {
+    private spawnCharacter(characterType: CharacterType, controller: CharacterController) {
         const offset = 38;
         const { right, bottom } = this.physics.world.bounds;
         const spawnArea: Phaser.Types.Math.Vector2Like = {
