@@ -82,7 +82,6 @@ export default function Home() {
   const _onCreateRoom = (roomName: string) => {
     setRoomName(roomName);
     setRenderCreateRoomForm(false);
-    // setRenderGame(true);
     socket.emit('joinTeam');
   };
 
@@ -94,7 +93,6 @@ export default function Home() {
   const _onJoinRoom = (roomName: string) => {
     setRoomName(roomName);
     setRenderLobby(false);
-    // setRenderGame(true);
     socket.emit('joinTeam');
   };
 

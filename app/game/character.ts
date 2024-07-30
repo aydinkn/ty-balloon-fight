@@ -15,7 +15,7 @@ export const CharacterState = {
 };
 
 export class Character extends Phaser.GameObjects.Container {
-    private maxVelocity = 250;
+    private maxVelocity = 300;
     private dragX = 50;
     private scaleFactor = 3;
     private characterSprite!: CharacterSprite;

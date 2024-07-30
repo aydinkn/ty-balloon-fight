@@ -18,10 +18,10 @@ export class CharacterController {
     private character!: Character;
     private isOnGround = false;
     private walkSpeed = 100;
-    private flapAccelerationX = 180;
+    private flapAccelerationX = 230;
     private flapTime = 0;
     private flapRate = 200;
-    private flapVelocityY = 120;
+    private flapVelocityY = 170;
     private floor: Phaser.GameObjects.GameObject | null;
     private ceiling: Phaser.GameObjects.GameObject | null;
     private inputs!: {
@@ -206,7 +206,11 @@ export class CharacterController {
         const predictedVelocityY = this.peerVelocity.y + gravityY * delta;
 
         const predictedTransformX = this.peerTransform.x + this.peerVelocity.x * delta;
-        const predictedTransformY = this.peerTransform.y + this.peerVelocity.y * delta + .5 * gravityY * Math.pow(delta, 2);
+        let predictedTransformY = this.peerTransform.y + this.peerVelocity.y * delta;
+
+        if (this.character.state === CharacterState.flapping) {
+            predictedTransformY += .5 * gravityY * Math.pow(delta, 2);
+        }
 
         const body = this.character.getBody();
         body.setVelocity(predictedVelocityX, predictedVelocityY);
