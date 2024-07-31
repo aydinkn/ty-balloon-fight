@@ -2,7 +2,7 @@
 
 import 'phaser';
 import { Character, CharacterType } from '@/app/game/character';
-import { RTCManager } from "@/app/game/rtcManager";
+import { InitialMessage, RTCManager } from "@/app/game/rtcManager";
 import { CharacterController, NetRole } from '@/app/game/characterController';
 
 export interface GameBootData {
@@ -23,17 +23,13 @@ export class Game extends Phaser.Scene {
         this.gameBootData = data;
 
         this.rtcManager = new RTCManager({ roomName: this.gameBootData.roomName });
-        this.rtcManager.addEventListener('dataChannelOpen', event => {
-            const customEvent = event as CustomEvent;
-            const client = this.rtcManager.getClient(customEvent.detail.clientId);
+        this.rtcManager.addEventListener('initialMessage', event => {
+            const customEvent = event as CustomEvent<InitialMessage>;
+            const { client, data } = customEvent.detail;
 
-            if (!client) return;
-
-            console.log(client.data.team);
-
-            const controller = new CharacterController(this, this.rtcManager, NetRole.SimulatedProxy, client);
-            const player = this.spawnCharacter(client.data.team as CharacterType, controller);
-            player.setNickName(client.data.nickName);
+            const peerCharacter = this.spawnCharacter(client.data.team as CharacterType, data.transform);
+            peerCharacter.setController(new CharacterController(this, this.rtcManager, NetRole.SimulatedProxy, client, data));
+            peerCharacter.setNickName(client.data.nickName);
         });
     }
 
@@ -56,23 +52,23 @@ export class Game extends Phaser.Scene {
             .setOrigin(0, 0).setName('ceiling');
         this.physics.add.existing(ceiling, true);
 
-        const controller = new CharacterController(this, this.rtcManager, NetRole.Authority);
-        const player = this.spawnCharacter(this.gameBootData.team as CharacterType, controller);
-        player.setNickName(this.gameBootData.nickName);
+        const playerCharacter = this.spawnCharacter(this.gameBootData.team as CharacterType);
+        playerCharacter.setController(new CharacterController(this, this.rtcManager, NetRole.Authority));
+        playerCharacter.setNickName(this.gameBootData.nickName);
     }
 
     update(time: number, delta: number) {
 
     }
 
-    private spawnCharacter(characterType: CharacterType, controller: CharacterController) {
+    private spawnCharacter(characterType: CharacterType, transform?: Phaser.Types.Math.Vector2Like) {
         const offset = 38;
         const { right, bottom } = this.physics.world.bounds;
-        const spawnArea: Phaser.Types.Math.Vector2Like = {
+        const spawnTransform: Phaser.Types.Math.Vector2Like = !transform ? {
             x: Phaser.Math.Between(offset, right - offset),
             y: bottom - offset - 24
-        };
+        } : transform;
 
-        return new Character(this, spawnArea.x, spawnArea.y, characterType, controller);
+        return new Character(this, spawnTransform.x, spawnTransform.y, characterType);
     }
 };

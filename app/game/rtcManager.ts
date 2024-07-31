@@ -11,6 +11,11 @@ export interface Client {
     dataChannel?: RTCDataChannel;
 };
 
+export interface InitialMessage {
+    client: Client,
+    data: any
+};
+
 export class RTCManager extends EventTarget {
     private configs: RTCManagerConfigs;
     private clients: { [id: string]: Client } = {};
@@ -66,9 +71,13 @@ export class RTCManager extends EventTarget {
 
         if (!client || !client.dataChannel) return;
 
-        client.dataChannel.addEventListener('open', event => {
-            this.dispatchEvent(new CustomEvent('dataChannelOpen', { detail: { clientId } }));
-        });
+        const initialMessage = (event: any) => {
+            const data = JSON.parse(event.data);
+            this.dispatchEvent(new CustomEvent<InitialMessage>('initialMessage', { detail: { client, data } }));
+            client.dataChannel!.removeEventListener('message', initialMessage);
+        };
+
+        client.dataChannel.addEventListener('message', initialMessage);
     }
 
     private async getClientsInRoomResult(clients: { id: string, data: any }[]) {

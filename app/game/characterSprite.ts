@@ -65,8 +65,6 @@ export class CharacterSprite extends Phaser.GameObjects.Sprite {
 
         this.anims.play(this.animKeys[value]);
 
-        console.log(`Character state: ${this.state}`);
-
         return this;
     }
 }

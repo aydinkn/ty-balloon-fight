@@ -22,14 +22,12 @@ export class Character extends Phaser.GameObjects.Container {
     private balloon!: Balloon;
     private nickNameText!: Phaser.GameObjects.Text;
     private characterType: CharacterType;
-    private controller: CharacterController;
+    private controller?: CharacterController;
 
-    constructor(scene: Phaser.Scene, x: number, y: number, characterType: CharacterType, controller: CharacterController) {
+    constructor(scene: Phaser.Scene, x: number, y: number, characterType: CharacterType) {
         super(scene, x, y);
 
         this.characterType = characterType;
-        this.controller = controller;
-        this.controller.setCharacter(this);
         this.onSceneUpdate = this.onSceneUpdate.bind(this);
 
         scene.add.existing(this);
@@ -41,6 +39,11 @@ export class Character extends Phaser.GameObjects.Container {
         this.setupPhysics();
 
         scene.events.on('update', this.onSceneUpdate);
+    }
+
+    setController(controller: CharacterController) {
+        this.controller = controller;
+        this.controller.setCharacter(this);
     }
 
     private setupNickNameText() {
@@ -70,7 +73,7 @@ export class Character extends Phaser.GameObjects.Container {
 
     private onSceneUpdate(time: number, delta: number) {
         this.scene.physics.world.wrap(this, 5);
-        this.controller.update(time, delta);
+        this.controller?.update(time, delta);
     }
 
     destroy(fromScene?: boolean | undefined): void {

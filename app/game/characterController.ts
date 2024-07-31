@@ -14,6 +14,13 @@ export enum NetRole {
     SimulatedProxy
 }
 
+export interface InitialReplicationData {
+    transform: Phaser.Types.Math.Vector2Like;
+    velocity: Phaser.Types.Math.Vector2Like;
+    inputs: InputState;
+    state: string;
+}
+
 export class CharacterController {
     private character!: Character;
     private isOnGround = false;
@@ -25,9 +32,9 @@ export class CharacterController {
     private floor: Phaser.GameObjects.GameObject | null;
     private ceiling: Phaser.GameObjects.GameObject | null;
     private inputs!: {
-        leftKey: Phaser.Input.Keyboard.Key | boolean,
-        rightKey: Phaser.Input.Keyboard.Key | boolean,
-        flapKey: Phaser.Input.Keyboard.Key | boolean
+        left: Phaser.Input.Keyboard.Key | boolean,
+        right: Phaser.Input.Keyboard.Key | boolean,
+        flap: Phaser.Input.Keyboard.Key | boolean
     };
     private peerTransform: Phaser.Types.Math.Vector2Like = { x: 0, y: 0 };
     private peerVelocity: Phaser.Types.Math.Vector2Like = { x: 0, y: 0 };
@@ -39,7 +46,8 @@ export class CharacterController {
         private scene: Phaser.Scene,
         private rtcManager: RTCManager,
         private netRole = NetRole.None,
-        private client?: Client
+        private client?: Client,
+        private initialReplicationData?: InitialReplicationData
     ) {
         this.floor = scene.children.getByName('floor');
         this.ceiling = scene.children.getByName('ceiling');
@@ -50,15 +58,8 @@ export class CharacterController {
             if (client.dataChannel) {
                 client.dataChannel.addEventListener('message', event => {
                     const data = JSON.parse(event.data);
-                    const timestamp = performance.timeOrigin + performance.now();
-                    this.peerTransform = data.transform;
-                    this.peerVelocity = data.velocity;
-                    this.inputs = {
-                        leftKey: data.input.left,
-                        rightKey: data.input.right,
-                        flapKey: data.input.flap
-                    };
-                    this.lastUpdateTime = timestamp;
+                    const { transform, velocity, inputs } = data;
+                    this.updatePeerMovementInputState(transform, velocity, inputs);
                 });
             }
         }
@@ -73,15 +74,15 @@ export class CharacterController {
     private setupInputs() {
         if (this.hasAuthority()) {
             this.inputs = {
-                leftKey: this.scene.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.A),
-                rightKey: this.scene.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.D),
-                flapKey: this.scene.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE)
+                left: this.scene.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.A),
+                right: this.scene.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.D),
+                flap: this.scene.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE)
             };
         } else {
             this.inputs = {
-                leftKey: false,
-                rightKey: false,
-                flapKey: false
+                left: false,
+                right: false,
+                flap: false
             };
         }
     }
@@ -90,13 +91,13 @@ export class CharacterController {
         if (!this.character) return { left: false, right: false, flap: false };
 
         return this.hasAuthority() ? {
-            left: (this.inputs.leftKey as Phaser.Input.Keyboard.Key).isDown,
-            right: (this.inputs.rightKey as Phaser.Input.Keyboard.Key).isDown,
-            flap: (this.inputs.flapKey as Phaser.Input.Keyboard.Key).isDown
+            left: (this.inputs.left as Phaser.Input.Keyboard.Key).isDown,
+            right: (this.inputs.right as Phaser.Input.Keyboard.Key).isDown,
+            flap: (this.inputs.flap as Phaser.Input.Keyboard.Key).isDown
         } : {
-            left: !!this.inputs.leftKey,
-            right: !!this.inputs.rightKey,
-            flap: !!this.inputs.flapKey
+            left: !!this.inputs.left,
+            right: !!this.inputs.right,
+            flap: !!this.inputs.flap
         };
     }
 
@@ -147,9 +148,10 @@ export class CharacterController {
     private replicateMovement() {
         const transform = this.getTransform();
         const velocity = this.getVelocity();
-        const input = this.getInputState();
+        const inputs = this.getInputState();
+        const state = this.character.state;
         const timestamp = performance.timeOrigin + performance.now();
-        this.rtcManager.sendDataChannelMessageAll(JSON.stringify({ timestamp, transform, velocity, input }));
+        this.rtcManager.sendDataChannelMessageAll(JSON.stringify({ timestamp, transform, velocity, inputs, state }));
     }
 
     protected handleMovement(time: number) {
@@ -196,6 +198,28 @@ export class CharacterController {
 
     setCharacter(character: Character) {
         this.character = character;
+
+        if (this.initialReplicationData) {
+            const { transform, velocity, inputs, state } = this.initialReplicationData;
+            this.updatePeerMovementInputState(transform, velocity, inputs, state);
+        }
+    }
+
+    private updatePeerMovementInputState(
+        transform: Phaser.Types.Math.Vector2Like,
+        velocity: Phaser.Types.Math.Vector2Like,
+        inputs: InputState,
+        characterState?: string
+    ) {
+        this.peerTransform = transform;
+        this.peerVelocity = velocity;
+        this.inputs = inputs;
+
+        if (characterState) {
+            this.character.setState(characterState);
+        }
+        
+        this.lastUpdateTime = performance.timeOrigin + performance.now();
     }
 
     private interpolate() {
