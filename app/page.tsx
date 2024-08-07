@@ -96,11 +96,16 @@ export default function Home() {
     socket.emit('joinTeam');
   };
 
+  const _onQuitGame = () => {
+    setRenderGame(false);
+    setRenderLobby(true);
+  };
+
   return (
     <div>
       <p>Status: {isConnected ? "connected" : "disconnected"}</p>
 
-      {isConnected && renderNickNameForm && <NickName nickName={nickName}
+      {renderNickNameForm && <NickName nickName={nickName}
         onClickCancel={_onClickCancelSetNickName} onSetNickName={_onSetNickName} />}
 
       {renderLobby && <Lobby onClickCreateRoom={_onClickCreateRoom}
@@ -108,7 +113,7 @@ export default function Home() {
 
       {renderCreateRoomForm && <CreateRoomForm onClickCancel={_onClickCancelCreateRoom} onCreateRoom={_onCreateRoom} />}
 
-      {renderGame && <GameContainer nickName={nickName} roomName={roomName} team={team} />}
+      {renderGame && <GameContainer nickName={nickName} roomName={roomName} team={team} onQuitGame={_onQuitGame} />}
     </div>
   );
 }

@@ -78,6 +78,9 @@ export class Character extends Phaser.GameObjects.Container {
 
     destroy(fromScene?: boolean | undefined): void {
         this.scene.events.off('update', this.onSceneUpdate);
+        this.balloon.destroy(fromScene);
+        this.nickNameText.destroy(fromScene);
+        this.characterSprite.destroy(fromScene);
 
         super.destroy(fromScene);
     }

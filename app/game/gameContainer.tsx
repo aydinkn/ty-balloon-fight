@@ -10,9 +10,10 @@ export interface GameContainerProps {
     nickName: string;
     roomName: string;
     team: string;
+    onQuitGame: () => void;
 }
 
-export const GameContainer = ({ nickName, roomName, team }: GameContainerProps) => {
+export const GameContainer = ({ nickName, roomName, team, onQuitGame }: GameContainerProps) => {
     useEffect(() => {
         if (!isGameInitialized) {
             const gameConfig: Phaser.Types.Core.GameConfig = {
@@ -30,11 +31,18 @@ export const GameContainer = ({ nickName, roomName, team }: GameContainerProps) 
                 parent: 'game-container'
             };
             
-            const game = new Phaser.Game(gameConfig);
+            let game: Phaser.Game | null = new Phaser.Game(gameConfig);
+
+            game.events.addListener('destroy', () => {
+                isGameInitialized = false;
+                game = null;
+                onQuitGame();
+            });
+
             game.scene.start('gameplay', { nickName, roomName, team });
             isGameInitialized = true;
         }
-    }, [nickName, roomName, team]);
+    }, [nickName, roomName, team, onQuitGame]);
 
     return (
         <div id='game-container' className="game-container"></div>

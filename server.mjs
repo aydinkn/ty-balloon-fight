@@ -11,17 +11,28 @@ const handler = app.getRequestHandler();
 const clients = {};
 const rooms = {};
 
-function* genTeam() {
-  while (true) {
-    yield 'red';
-    yield 'blue';
-  }
-}
-
 app.prepare().then(() => {
   const httpServer = createServer(handler);
-
   const io = new Server(httpServer);
+
+  function getJoinedRoom(socket) {
+    return Array.from(socket.rooms).find(r => r !== socket.id);
+  }
+  
+  async function handleEmptyRoom(room) {
+    const isEmptyRoom = (await io.in(room).fetchSockets()).length <= 1;
+  
+    if (isEmptyRoom) {
+      delete rooms[room];
+    }
+  }
+
+  function* genTeam() {
+    while (true) {
+      yield 'red';
+      yield 'blue';
+    }
+  }
 
   io.on("connect", (socket) => {
     clients[socket.id] = socket;
@@ -30,15 +41,12 @@ app.prepare().then(() => {
 
     socket.on('disconnecting', async (reason) => {
       console.log('Server: disconnecting socket', socket.id, reason);
-      const joinedRoom = Array.from(socket.rooms).find(r => r !== socket.id);
+      const joinedRoom = getJoinedRoom(socket);
 
       if (joinedRoom) {
         try {
-          const isEmptyRoom = (await io.in(joinedRoom).fetchSockets()).length === 1;
-
-          if (isEmptyRoom) {
-            delete rooms[joinedRoom];
-          }
+          io.to(joinedRoom).emit('disconnectingClient', { clientId: socket.id });
+          await handleEmptyRoom(joinedRoom);
         } catch (error) {
           // TODO: Handle the error
         }
@@ -92,6 +100,21 @@ app.prepare().then(() => {
 
       socket.join(roomName);
       socket.emit('joinRoomResult', { success: true, roomName: roomName });
+    });
+
+    socket.on('leaveRoom', () => {
+      const joinedRoom = getJoinedRoom(socket);
+
+      if (!rooms[joinedRoom]) {
+        console.error('Server:Error: room not found', joinedRoom);
+        socket.emit('leaveRoomResult', { success: false, roomName: joinedRoom, errorCode: 'ROOM_NOT_FOUND' });
+        return;
+      }
+
+      handleEmptyRoom(joinedRoom);
+      socket.leave(joinedRoom);
+      socket.emit('leaveRoomResult', { success: true, roomName: joinedRoom });
+      io.to(joinedRoom).emit('leavingClient', { clientId: socket.id });
     });
 
     socket.on('joinTeam', () => {

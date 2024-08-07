@@ -4,6 +4,7 @@ import 'phaser';
 import { Character, CharacterType } from '@/app/game/character';
 import { InitialMessage, RTCManager } from "@/app/game/rtcManager";
 import { CharacterController, NetRole } from '@/app/game/characterController';
+import { socket } from "@/socket.mjs";
 
 export interface GameBootData {
     nickName: string;
@@ -14,6 +15,8 @@ export interface GameBootData {
 export class Game extends Phaser.Scene {
     private gameBootData!: GameBootData;
     private rtcManager!: RTCManager;
+    private localPlayer!: Character;
+    private remotePlayers: { [id: string]: Character } = {};
 
     constructor() {
         super({ key: 'gameplay' });
@@ -23,13 +26,30 @@ export class Game extends Phaser.Scene {
         this.gameBootData = data;
 
         this.rtcManager = new RTCManager({ roomName: this.gameBootData.roomName });
+
         this.rtcManager.addEventListener('initialMessage', event => {
             const customEvent = event as CustomEvent<InitialMessage>;
             const { client, data } = customEvent.detail;
 
             const peerCharacter = this.spawnCharacter(client.data.team as CharacterType, data.transform);
+            this.remotePlayers[client.id] = peerCharacter;
             peerCharacter.setController(new CharacterController(this, this.rtcManager, NetRole.SimulatedProxy, client, data));
             peerCharacter.setNickName(client.data.nickName);
+        });
+
+        this.rtcManager.addEventListener('clientLeave', event => {
+            const customEvent = event as CustomEvent<{ clientId: string }>;
+            const { clientId } = customEvent.detail;
+            const player = this.remotePlayers[clientId];
+
+            if (!player) return;
+
+            player.destroy(true);
+            delete this.remotePlayers[clientId];
+        });
+
+        this.rtcManager.addEventListener('disconnect', event => {
+            this.sys.game.destroy(true);
         });
     }
 
@@ -52,9 +72,17 @@ export class Game extends Phaser.Scene {
             .setOrigin(0, 0).setName('ceiling');
         this.physics.add.existing(ceiling, true);
 
-        const playerCharacter = this.spawnCharacter(this.gameBootData.team as CharacterType);
-        playerCharacter.setController(new CharacterController(this, this.rtcManager, NetRole.Authority));
-        playerCharacter.setNickName(this.gameBootData.nickName);
+        this.localPlayer = this.spawnCharacter(this.gameBootData.team as CharacterType);
+        this.localPlayer.setController(new CharacterController(this, this.rtcManager, NetRole.Authority));
+        this.localPlayer.setNickName(this.gameBootData.nickName);
+
+        const escKey = this.input.keyboard?.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
+        escKey?.on('down', () => {
+            this.rtcManager.leaveAllClients();
+            this.rtcManager.destroy();
+            socket.emit('leaveRoom');
+            this.sys.game.destroy(true);
+        });
     }
 
     update(time: number, delta: number) {

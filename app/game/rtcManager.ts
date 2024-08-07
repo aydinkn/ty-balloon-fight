@@ -29,11 +29,17 @@ export class RTCManager extends EventTarget {
         this.answer = this.answer.bind(this);
         this.offer = this.offer.bind(this);
         this.iceCandidate = this.iceCandidate.bind(this);
+        this.disconnect = this.disconnect.bind(this);
+        this.leavingClient = this.leavingClient.bind(this);
+        this.disconnectingClient = this.disconnectingClient.bind(this);
 
         socket.on('getClientsInRoomResult', this.getClientsInRoomResult);
         socket.on('answer', this.answer);
         socket.on('offer', this.offer);
         socket.on('iceCandidate', this.iceCandidate);
+        socket.on('disconnect', this.disconnect);
+        socket.on('leavingClient', this.leavingClient);
+        socket.on('disconnectingClient', this.disconnectingClient);
 
         socket.emit('getClientsInRoom', { roomName: this.configs.roomName });
     }
@@ -124,6 +130,52 @@ export class RTCManager extends EventTarget {
         await rtcClient.peerConnection.addIceCandidate(candidate);
     };
 
+    private disconnect() {
+        this.leaveAllClients();
+        this.dispatchEvent(new CustomEvent('disconnect'));
+    }
+
+    private leavingClient({ clientId } : { clientId: string }) {
+        this.leaveClient(clientId);
+    }
+
+    private disconnectingClient({ clientId } : { clientId: string }) {
+        this.leaveClient(clientId);
+    }
+
+    leaveAllClients() {
+        const clientIds = Object.keys(this.clients);
+
+        for (const clientId of clientIds) {
+            this.leaveClient(clientId);
+        }
+    }
+
+    destroy() {
+        socket.off('getClientsInRoomResult', this.getClientsInRoomResult);
+        socket.off('answer', this.answer);
+        socket.off('offer', this.offer);
+        socket.off('iceCandidate', this.iceCandidate);
+        socket.off('disconnect', this.disconnect);
+        socket.off('leavingClient', this.leavingClient);
+        socket.off('disconnectingClient', this.disconnectingClient);
+    }
+
+    private leaveClient(clientId: string) {
+        const client = this.clients[clientId];
+
+        if (!client) return;
+
+        if (client.dataChannel) {
+            client.dataChannel.close();
+        }
+
+        client.peerConnection.close();
+        delete this.clients[clientId];
+
+        this.dispatchEvent(new CustomEvent('clientLeave', { detail: { clientId } }));
+    }
+
     private registerPeerConnectionEventsForClient(clientId: string, peerConnection: RTCPeerConnection) {
         const client = this.clients[clientId];
 
@@ -137,6 +189,12 @@ export class RTCManager extends EventTarget {
             if (!event.channel) return;
 
             this.setDataChannelForClient(clientId, event.channel);
+        });
+
+        peerConnection.addEventListener('connectionstatechange', () => {
+            if (peerConnection.connectionState === 'failed') {
+                this.leaveClient(clientId);
+            }
         });
     }
 
