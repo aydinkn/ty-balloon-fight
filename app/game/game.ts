@@ -2,9 +2,8 @@
 
 import 'phaser';
 import { Character, CharacterType } from '@/app/game/character';
-import { InitialMessage, RTCManager } from "@/app/game/rtcManager";
+import { Message, ConnectionManager } from "@/app/game/connectionManager";
 import { CharacterController, NetRole } from '@/app/game/characterController';
-import { socket } from "@/socket.mjs";
 
 export interface GameBootData {
     nickName: string;
@@ -14,7 +13,7 @@ export interface GameBootData {
 
 export class Game extends Phaser.Scene {
     private gameBootData!: GameBootData;
-    private rtcManager!: RTCManager;
+    private connectionManager!: ConnectionManager;
     private localPlayer!: Character;
     private remotePlayers: { [id: string]: Character } = {};
 
@@ -22,35 +21,64 @@ export class Game extends Phaser.Scene {
         super({ key: 'gameplay' });
     }
 
-    init(data: GameBootData) {
-        this.gameBootData = data;
-
-        this.rtcManager = new RTCManager({ roomName: this.gameBootData.roomName });
-
-        this.rtcManager.addEventListener('initialMessage', event => {
-            const customEvent = event as CustomEvent<InitialMessage>;
+    private registerConnectionManagerEvents() {
+        this.connectionManager.addEventListener('initialMovementMessage', event => {
+            const customEvent = event as CustomEvent<Message>;
             const { client, data } = customEvent.detail;
+
+            if (!client) return;
 
             const peerCharacter = this.spawnCharacter(client.data.team as CharacterType, data.transform);
             this.remotePlayers[client.id] = peerCharacter;
-            peerCharacter.setController(new CharacterController(this, this.rtcManager, NetRole.SimulatedProxy, client, data));
+            const controller = new CharacterController(this, this.connectionManager, NetRole.SimulatedProxy, client, data);
+            peerCharacter.setController(controller);
             peerCharacter.setNickName(client.data.nickName);
+            controller.addCharacterCollisionOverlap(this.localPlayer);
         });
 
-        this.rtcManager.addEventListener('clientLeave', event => {
+        this.connectionManager.addEventListener('deathMessage', event => {
+            const customEvent = event as CustomEvent<Message>;
+            const { client } = customEvent.detail;
+            const player = client ? this.remotePlayers[client.id] : this.localPlayer;
+            const controller = player.getController();
+            controller?.death();
+
+            if (client) {
+                delete this.remotePlayers[client.id];
+            }
+        });
+
+        this.connectionManager.addEventListener('clientLeave', event => {
             const customEvent = event as CustomEvent<{ clientId: string }>;
             const { clientId } = customEvent.detail;
             const player = this.remotePlayers[clientId];
 
             if (!player) return;
 
-            player.destroy(true);
+            player.destroy();
             delete this.remotePlayers[clientId];
         });
 
-        this.rtcManager.addEventListener('disconnect', event => {
+        this.connectionManager.addEventListener('disconnect', event => {
             this.sys.game.destroy(true);
         });
+    }
+
+    private spawnCharacter(characterType: CharacterType, transform?: Phaser.Types.Math.Vector2Like) {
+        const offset = 38;
+        const { right, bottom } = this.physics.world.bounds;
+        const spawnTransform: Phaser.Types.Math.Vector2Like = !transform ? {
+            x: Phaser.Math.Between(offset, right - offset),
+            y: bottom - offset - 24
+        } : transform;
+
+        return new Character(this, spawnTransform.x, spawnTransform.y, characterType);
+    }
+
+    init(data: GameBootData) {
+        this.gameBootData = data;
+        this.connectionManager = new ConnectionManager({ roomName: this.gameBootData.roomName });
+        this.registerConnectionManagerEvents();
     }
 
     preload() {
@@ -73,30 +101,14 @@ export class Game extends Phaser.Scene {
         this.physics.add.existing(ceiling, true);
 
         this.localPlayer = this.spawnCharacter(this.gameBootData.team as CharacterType);
-        this.localPlayer.setController(new CharacterController(this, this.rtcManager, NetRole.Authority));
+        this.localPlayer.setController(new CharacterController(this, this.connectionManager, NetRole.Authority));
         this.localPlayer.setNickName(this.gameBootData.nickName);
 
         const escKey = this.input.keyboard?.addKey(Phaser.Input.Keyboard.KeyCodes.ESC);
         escKey?.on('down', () => {
-            this.rtcManager.leaveAllClients();
-            this.rtcManager.destroy();
-            socket.emit('leaveRoom');
+            this.connectionManager.leaveAllClients();
+            this.connectionManager.destroy();
             this.sys.game.destroy(true);
         });
-    }
-
-    update(time: number, delta: number) {
-
-    }
-
-    private spawnCharacter(characterType: CharacterType, transform?: Phaser.Types.Math.Vector2Like) {
-        const offset = 38;
-        const { right, bottom } = this.physics.world.bounds;
-        const spawnTransform: Phaser.Types.Math.Vector2Like = !transform ? {
-            x: Phaser.Math.Between(offset, right - offset),
-            y: bottom - offset - 24
-        } : transform;
-
-        return new Character(this, spawnTransform.x, spawnTransform.y, characterType);
     }
 };

@@ -1,6 +1,6 @@
 import { socket } from "@/socket.mjs";
 
-export interface RTCManagerConfigs {
+export interface ConnectionManagerConfigs {
     roomName: string;
 };
 
@@ -11,16 +11,21 @@ export interface Client {
     dataChannel?: RTCDataChannel;
 };
 
-export interface InitialMessage {
-    client: Client,
+export interface Message {
+    client: Client | null,
     data: any
 };
 
-export class RTCManager extends EventTarget {
-    private configs: RTCManagerConfigs;
+export enum MessageType {
+    movement = 'movement',
+    death = 'death'
+};
+
+export class ConnectionManager extends EventTarget {
+    private configs: ConnectionManagerConfigs;
     private clients: { [id: string]: Client } = {};
 
-    constructor(configs: RTCManagerConfigs) {
+    constructor(configs: ConnectionManagerConfigs) {
         super();
 
         this.configs = configs;
@@ -77,13 +82,28 @@ export class RTCManager extends EventTarget {
 
         if (!client || !client.dataChannel) return;
 
-        const initialMessage = (event: any) => {
+        const initialMovementMessage = (event: any) => {
             const data = JSON.parse(event.data);
-            this.dispatchEvent(new CustomEvent<InitialMessage>('initialMessage', { detail: { client, data } }));
-            client.dataChannel!.removeEventListener('message', initialMessage);
+
+            if (data.type !== MessageType.movement) return;
+
+            this.dispatchEvent(new CustomEvent<Message>('initialMovementMessage', { detail: { client, data } }));
+            client.dataChannel!.removeEventListener('message', initialMovementMessage);
         };
 
-        client.dataChannel.addEventListener('message', initialMessage);
+        const deathMessage = (event: any) => {
+            const data = JSON.parse(event.data);
+
+            if (data.type !== MessageType.death) return;
+
+            const { clientId } = data;
+            const client = this.clients[clientId] || null;
+
+            this.dispatchEvent(new CustomEvent<Message>('deathMessage', { detail: { client, data } }));
+        };
+
+        client.dataChannel.addEventListener('message', initialMovementMessage);
+        client.dataChannel.addEventListener('message', deathMessage);
     }
 
     private async getClientsInRoomResult(clients: { id: string, data: any }[]) {
@@ -152,6 +172,7 @@ export class RTCManager extends EventTarget {
     }
 
     destroy() {
+        socket.emit('leaveRoom');
         socket.off('getClientsInRoomResult', this.getClientsInRoomResult);
         socket.off('answer', this.answer);
         socket.off('offer', this.offer);

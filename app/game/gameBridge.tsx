@@ -6,14 +6,14 @@ import { useEffect } from 'react';
 
 let isGameInitialized = false;
 
-export interface GameContainerProps {
+export interface GameBridgeProps {
     nickName: string;
     roomName: string;
     team: string;
     onQuitGame: () => void;
 }
 
-export const GameContainer = ({ nickName, roomName, team, onQuitGame }: GameContainerProps) => {
+export const GameBridge = ({ nickName, roomName, team, onQuitGame }: GameBridgeProps) => {
     useEffect(() => {
         if (!isGameInitialized) {
             const gameConfig: Phaser.Types.Core.GameConfig = {
@@ -28,7 +28,7 @@ export const GameContainer = ({ nickName, roomName, team, onQuitGame }: GameCont
                     }
                 },
                 scene: Game,
-                parent: 'game-container'
+                parent: 'game-bridge'
             };
             
             let game: Phaser.Game | null = new Phaser.Game(gameConfig);
@@ -45,6 +45,6 @@ export const GameContainer = ({ nickName, roomName, team, onQuitGame }: GameCont
     }, [nickName, roomName, team, onQuitGame]);
 
     return (
-        <div id='game-container' className="game-container"></div>
+        <div id='game-bridge' className="game-bridge"></div>
     );
 }

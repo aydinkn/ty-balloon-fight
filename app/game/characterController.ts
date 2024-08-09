@@ -1,5 +1,5 @@
 import 'phaser';
-import { Client, RTCManager } from '@/app/game/rtcManager';
+import { Client, MessageType, ConnectionManager } from '@/app/game/connectionManager';
 import { Character, CharacterState } from '@/app/game/character';
 
 interface InputState {
@@ -44,7 +44,7 @@ export class CharacterController {
 
     constructor(
         private scene: Phaser.Scene,
-        private rtcManager: RTCManager,
+        private connectionManager: ConnectionManager,
         private netRole = NetRole.None,
         private client?: Client,
         private initialReplicationData?: InitialReplicationData
@@ -67,12 +67,12 @@ export class CharacterController {
         this.setupInputs();
     }
 
-    hasAuthority() {
+    isLocallyControlled() {
         return this.netRole === NetRole.Authority;
     }
 
     private setupInputs() {
-        if (this.hasAuthority()) {
+        if (this.isLocallyControlled()) {
             this.inputs = {
                 left: this.scene.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.A),
                 right: this.scene.input.keyboard!.addKey(Phaser.Input.Keyboard.KeyCodes.D),
@@ -90,7 +90,7 @@ export class CharacterController {
     getInputState(): InputState {
         if (!this.character) return { left: false, right: false, flap: false };
 
-        return this.hasAuthority() ? {
+        return this.isLocallyControlled() ? {
             left: (this.inputs.left as Phaser.Input.Keyboard.Key).isDown,
             right: (this.inputs.right as Phaser.Input.Keyboard.Key).isDown,
             flap: (this.inputs.flap as Phaser.Input.Keyboard.Key).isDown
@@ -151,7 +151,10 @@ export class CharacterController {
         const inputs = this.getInputState();
         const state = this.character.state;
         const timestamp = performance.timeOrigin + performance.now();
-        this.rtcManager.sendDataChannelMessageAll(JSON.stringify({ timestamp, transform, velocity, inputs, state }));
+
+        this.connectionManager.sendDataChannelMessageAll(
+            JSON.stringify({ timestamp, type: MessageType.movement, transform, velocity, inputs, state })
+        );
     }
 
     protected handleMovement(time: number) {
@@ -177,7 +180,7 @@ export class CharacterController {
             body.setVelocityY(-newVelocityY);
         }
 
-        if (this.hasAuthority() && time > this.replTime) {
+        if (this.isLocallyControlled() && time > this.replTime) {
             this.replTime = time + this.replRate;
             this.replicateMovement();
         }
@@ -218,7 +221,7 @@ export class CharacterController {
         if (characterState) {
             this.character.setState(characterState);
         }
-        
+
         this.lastUpdateTime = performance.timeOrigin + performance.now();
     }
 
@@ -246,20 +249,58 @@ export class CharacterController {
         } else {
             this.character.x = Phaser.Math.Interpolation.Linear([this.character.x, predictedTransformX], .1);
         }
-        
+
         this.character.y = Phaser.Math.Interpolation.Linear([this.character.y, predictedTransformY], .1);
     }
 
     update(time: number, delta: number) {
         if (!this.character) return;
 
-        if (!this.hasAuthority()) {
-            this.interpolate();
-        }
+        if (this.character.state !== CharacterState.death) {
+            if (!this.isLocallyControlled()) {
+                this.interpolate();
+            }
 
-        this.handleFloorCollision();
-        this.handleCeilingCollision();
-        this.resetVelocityAcceleration();
-        this.handleMovement(time);
+            this.handleFloorCollision();
+            this.handleCeilingCollision();
+            this.resetVelocityAcceleration();
+            this.handleMovement(time);
+        }
+    }
+
+    private processCallback: Phaser.Types.Physics.Arcade.ArcadePhysicsCallback = (object1, object2) => {
+        const character1 = object1 as Character;
+        const character2 = object2 as Character;
+
+        if (!character1 || !character2) return false;
+
+        return character1.state !== CharacterState.death && character2.state !== CharacterState.death;
+    }
+
+    addCharacterCollisionOverlap(locallyControlledCharacter: Character) {
+        if (this.isLocallyControlled() || !this.character) return;
+
+        const collider = this.scene.physics.add.collider(locallyControlledCharacter, this.character, undefined, this.processCallback);
+        const overlap = this.scene.physics.add.overlap(locallyControlledCharacter, this.character.getBalloon(), () => {
+            overlap.destroy();
+            collider.destroy();
+            const timestamp = performance.timeOrigin + performance.now();
+
+            this.connectionManager.sendDataChannelMessageAll(
+                JSON.stringify({ timestamp, type: MessageType.death, clientId: this.client?.id })
+            );
+
+            this.death();
+        }, this.processCallback);
+    }
+
+    death() {
+        this.character.setState(CharacterState.death);
+        this.character.getBody().setVelocity(0).setAllowGravity(false);
+
+        const destroyTimerEvent = this.scene.time.delayedCall(1500, () => {
+            destroyTimerEvent.destroy();
+            this.character?.destroy();
+        }, [], this);
     }
 };

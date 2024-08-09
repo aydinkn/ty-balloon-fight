@@ -11,13 +11,14 @@ export enum CharacterType {
 export const CharacterState = {
     'idling': 'idling',
     'walking': 'walking',
-    'flapping': 'flapping'
+    'flapping': 'flapping',
+    'death': 'death'
 };
 
 export class Character extends Phaser.GameObjects.Container {
     private maxVelocity = 300;
     private dragX = 50;
-    private scaleFactor = 3;
+    private scaleFactor = 6;
     private characterSprite!: CharacterSprite;
     private balloon!: Balloon;
     private nickNameText!: Phaser.GameObjects.Text;
@@ -46,6 +47,10 @@ export class Character extends Phaser.GameObjects.Container {
         this.controller.setCharacter(this);
     }
 
+    getController() {
+        return this.controller;
+    }
+
     private setupNickNameText() {
         this.nickNameText = this.scene.add.text(0, -15 * this.scaleFactor, '').setOrigin(.5, .5);
         this.add(this.nickNameText);
@@ -72,6 +77,8 @@ export class Character extends Phaser.GameObjects.Container {
     }
 
     private onSceneUpdate(time: number, delta: number) {
+        if (!this.scene) return;
+
         this.scene.physics.world.wrap(this, 5);
         this.controller?.update(time, delta);
     }

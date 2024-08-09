@@ -7,7 +7,7 @@ import { NickName } from "@/app/nickNameForm";
 import { Lobby } from "@/app/lobby";
 import { CreateRoomForm } from "@/app/createRoomForm";
 
-const GameContainer = dynamic(() => import('@/app/game/gameContainer').then(m => m.GameContainer), {
+const GameBridge = dynamic(() => import('@/app/game/gameBridge').then(m => m.GameBridge), {
   ssr: false,
 });
 
@@ -113,7 +113,7 @@ export default function Home() {
 
       {renderCreateRoomForm && <CreateRoomForm onClickCancel={_onClickCancelCreateRoom} onCreateRoom={_onCreateRoom} />}
 
-      {renderGame && <GameContainer nickName={nickName} roomName={roomName} team={team} onQuitGame={_onQuitGame} />}
+      {renderGame && <GameBridge nickName={nickName} roomName={roomName} team={team} onQuitGame={_onQuitGame} />}
     </div>
   );
 }
