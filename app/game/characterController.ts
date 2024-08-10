@@ -1,6 +1,7 @@
 import 'phaser';
 import { Client, MessageType, ConnectionManager } from '@/app/game/connectionManager';
 import { Character, CharacterState } from '@/app/game/character';
+import { SFXManager } from '@/app/game/sfxManager';
 
 interface InputState {
     left: boolean;
@@ -41,6 +42,7 @@ export class CharacterController {
     private lastUpdateTime = 0;
     private replTime = 0;
     private replRate = 10;
+    private sfxManager: SFXManager;
 
     constructor(
         private scene: Phaser.Scene,
@@ -65,6 +67,7 @@ export class CharacterController {
         }
 
         this.setupInputs();
+        this.sfxManager = SFXManager.getInstance();
     }
 
     isLocallyControlled() {
@@ -119,6 +122,7 @@ export class CharacterController {
 
         this.scene.physics.collide(balloon, this.ceiling, () => {
             body.setVelocityY(180);
+            this.sfxManager.playSound('bump');
         });
     }
 
@@ -174,6 +178,11 @@ export class CharacterController {
         if (flap && time > this.flapTime) {
             this.flapTime = time + this.flapRate;
             this.character.setState(CharacterState.flapping);
+
+            if (this.isLocallyControlled()) {
+                this.sfxManager.playSound('flap');
+            }
+
             const newVelocityY = body.velocity.y <= 0 ? this.flapVelocityY
                 : this.flapVelocityY - body.velocity.y;
 
@@ -280,7 +289,10 @@ export class CharacterController {
     addCharacterCollisionOverlap(locallyControlledCharacter: Character) {
         if (this.isLocallyControlled() || !this.character) return;
 
-        const collider = this.scene.physics.add.collider(locallyControlledCharacter, this.character, undefined, this.processCallback);
+        const collider = this.scene.physics.add.collider(locallyControlledCharacter, this.character, () => {
+            this.sfxManager.playSound('bump', true);
+        }, this.processCallback);
+
         const overlap = this.scene.physics.add.overlap(locallyControlledCharacter, this.character.getBalloon(), () => {
             overlap.destroy();
             collider.destroy();
@@ -296,6 +308,7 @@ export class CharacterController {
 
     death() {
         this.character.setState(CharacterState.death);
+        this.sfxManager.playSound('balloonBurst');
         this.character.getBody().setVelocity(0).setAllowGravity(false);
 
         const destroyTimerEvent = this.scene.time.delayedCall(1500, () => {

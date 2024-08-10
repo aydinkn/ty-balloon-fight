@@ -18,7 +18,7 @@ export const CharacterState = {
 export class Character extends Phaser.GameObjects.Container {
     private maxVelocity = 300;
     private dragX = 50;
-    private scaleFactor = 6;
+    private scaleFactor = 3;
     private characterSprite!: CharacterSprite;
     private balloon!: Balloon;
     private nickNameText!: Phaser.GameObjects.Text;

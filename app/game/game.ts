@@ -4,6 +4,7 @@ import 'phaser';
 import { Character, CharacterType } from '@/app/game/character';
 import { Message, ConnectionManager } from "@/app/game/connectionManager";
 import { CharacterController, NetRole } from '@/app/game/characterController';
+import { SFXManager } from '@/app/game/sfxManager';
 
 export interface GameBootData {
     nickName: string;
@@ -87,6 +88,7 @@ export class Game extends Phaser.Scene {
         this.load.image('background', 'game-assets/background.png');
         this.load.image('floor', 'game-assets/floor.png');
         this.load.spritesheet('character', 'game-assets/character.png', { frameWidth: 24, frameHeight: 32 });
+        SFXManager.getInstance().preload(this);
     }
 
     create() {
@@ -99,6 +101,8 @@ export class Game extends Phaser.Scene {
         const ceiling = this.add.rectangle(-25, -50, 1024 + 25, 50, 0xff0000)
             .setOrigin(0, 0).setName('ceiling');
         this.physics.add.existing(ceiling, true);
+
+        SFXManager.getInstance().create();
 
         this.localPlayer = this.spawnCharacter(this.gameBootData.team as CharacterType);
         this.localPlayer.setController(new CharacterController(this, this.connectionManager, NetRole.Authority));
