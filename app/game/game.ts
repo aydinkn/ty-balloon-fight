@@ -5,6 +5,7 @@ import { Character, CharacterType } from '@/app/game/character';
 import { Message, ConnectionManager } from "@/app/game/connectionManager";
 import { CharacterController, NetRole } from '@/app/game/characterController';
 import { SFXManager } from '@/app/game/sfxManager';
+import { PushToTalkService } from "@/app/game/pushToTalkService";
 
 export interface GameBootData {
     nickName: string;
@@ -78,8 +79,6 @@ export class Game extends Phaser.Scene {
 
     init(data: GameBootData) {
         this.gameBootData = data;
-        this.connectionManager = new ConnectionManager({ roomName: this.gameBootData.roomName });
-        this.registerConnectionManagerEvents();
     }
 
     preload() {
@@ -92,6 +91,11 @@ export class Game extends Phaser.Scene {
     }
 
     create() {
+        PushToTalkService.getInstance().create(this);
+
+        this.connectionManager = new ConnectionManager({ roomName: this.gameBootData.roomName });
+        this.registerConnectionManagerEvents();
+
         this.add.image(0, 0, 'background').setOrigin(0, 0).setScale(1.5);
 
         const floor = this.add.image(-25, 768 - 12 * 2, 'floor')

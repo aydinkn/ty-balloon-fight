@@ -1,4 +1,5 @@
 import { socket } from "@/socket.mjs";
+import { PushToTalkService } from "@/app/game/pushToTalkService";
 
 export interface ConnectionManagerConfigs {
     roomName: string;
@@ -113,8 +114,8 @@ export class ConnectionManager extends EventTarget {
             const peerConnection = this.createRTCPeerConnection();
             this.clients[client.id] = { id: client.id, data: client.data, peerConnection };
             this.setDataChannelForClient(client.id);
-
             this.registerPeerConnectionEventsForClient(client.id, peerConnection);
+            await PushToTalkService.getInstance().addLocalStreamAndTracks(peerConnection);
             const offer = await this.createOfferForLocalDescription(peerConnection);
             socket.emit('offer', { clientId: client.id, offer });
         }
@@ -136,6 +137,7 @@ export class ConnectionManager extends EventTarget {
         this.clients[clientId] = { id: clientId, data, peerConnection };
         this.registerPeerConnectionEventsForClient(clientId, peerConnection);
         await peerConnection.setRemoteDescription(offer);
+        await PushToTalkService.getInstance().addLocalStreamAndTracks(peerConnection);
         const answer = await this.createAnswerForLocalDescription(peerConnection);
         socket.emit('answer', { clientId, answer });
     }
@@ -217,6 +219,8 @@ export class ConnectionManager extends EventTarget {
                 this.leaveClient(clientId);
             }
         });
+
+        PushToTalkService.getInstance().handleTrackEvent(peerConnection);
     }
 
     getClient(id: string) {
