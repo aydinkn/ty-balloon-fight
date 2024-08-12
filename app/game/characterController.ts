@@ -28,7 +28,7 @@ export class CharacterController {
     private walkSpeed = 100;
     private flapAccelerationX = 230;
     private flapTime = 0;
-    private flapRate = 200;
+    private flapRate = 150;
     private flapVelocityY = 170;
     private floor: Phaser.GameObjects.GameObject | null;
     private ceiling: Phaser.GameObjects.GameObject | null;
@@ -41,7 +41,7 @@ export class CharacterController {
     private peerVelocity: Phaser.Types.Math.Vector2Like = { x: 0, y: 0 };
     private lastUpdateTime = 0;
     private replTime = 0;
-    private replRate = 10;
+    private replRate = 20;
     private sfxManager: SFXManager;
 
     constructor(
@@ -161,7 +161,7 @@ export class CharacterController {
         );
     }
 
-    protected handleMovement(time: number) {
+    protected handleMovement(time: number, delta: number) {
         const { left, right, flap } = this.getInputState();
         const body = this.character.getBody();
 
@@ -175,8 +175,10 @@ export class CharacterController {
             this.isOnGround ? body.setVelocityX(this.walkSpeed) : body.setAccelerationX(this.flapAccelerationX);
         }
 
-        if (flap && time > this.flapTime) {
-            this.flapTime = time + this.flapRate;
+        this.flapTime += delta;
+
+        if (flap && this.flapTime > this.flapRate) {
+            this.flapTime = 0;
             this.character.setState(CharacterState.flapping);
 
             if (this.isLocallyControlled()) {
@@ -189,9 +191,13 @@ export class CharacterController {
             body.setVelocityY(-newVelocityY);
         }
 
-        if (this.isLocallyControlled() && time > this.replTime) {
-            this.replTime = time + this.replRate;
-            this.replicateMovement();
+        if (this.isLocallyControlled()) {
+            this.replTime += delta;
+    
+            if (this.replTime > this.replRate) {
+                this.replTime = 0;
+                this.replicateMovement();
+            }
         }
 
         const hasXVelocity = Math.abs(body.velocity.x) > 1;
@@ -273,7 +279,7 @@ export class CharacterController {
             this.handleFloorCollision();
             this.handleCeilingCollision();
             this.resetVelocityAcceleration();
-            this.handleMovement(time);
+            this.handleMovement(time, delta);
         }
     }
 
