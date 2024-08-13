@@ -42,15 +42,6 @@ export class Character extends Phaser.GameObjects.Container {
         scene.events.on('update', this.onSceneUpdate);
     }
 
-    setController(controller: CharacterController) {
-        this.controller = controller;
-        this.controller.setCharacter(this);
-    }
-
-    getController() {
-        return this.controller;
-    }
-
     private setupNickNameText() {
         this.nickNameText = this.scene.add.text(0, -15 * this.scaleFactor, '').setOrigin(.5, .5);
         this.add(this.nickNameText);
@@ -81,6 +72,15 @@ export class Character extends Phaser.GameObjects.Container {
 
         this.scene.physics.world.wrap(this, 5);
         this.controller?.update(time, delta);
+    }
+
+    setController(controller: CharacterController) {
+        this.controller = controller;
+        this.controller.setCharacter(this);
+    }
+
+    getController() {
+        return this.controller;
     }
 
     destroy(fromScene?: boolean | undefined): void {

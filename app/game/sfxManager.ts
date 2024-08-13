@@ -15,6 +15,14 @@ export class SFXManager {
         this.destroy = this.destroy.bind(this);
     }
 
+    public static getInstance() {
+        if (!this.instance) {
+            this.instance = new SFXManager();
+        }
+
+        return this.instance;
+    }
+
     private getSoundKeys() {
         return Object.keys(this.sounds) as [keyof Sounds];
     }
@@ -27,14 +35,6 @@ export class SFXManager {
         for (const key of soundKeys) {
             this.scene.sound.removeByKey(key);
         }
-    }
-
-    public static getInstance() {
-        if (!this.instance) {
-            this.instance = new SFXManager();
-        }
-
-        return this.instance;
     }
 
     preload(scene: Phaser.Scene) {

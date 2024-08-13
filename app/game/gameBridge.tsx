@@ -1,8 +1,8 @@
 "use client";
 
 import 'phaser';
-import { Game } from '@/app/game/game';
 import { useEffect } from 'react';
+import { Game } from '@/app/game/game';
 
 let isGameInitialized = false;
 

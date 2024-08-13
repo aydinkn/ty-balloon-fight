@@ -15,7 +15,7 @@ export enum NetRole {
     SimulatedProxy
 }
 
-export interface InitialReplicationData {
+export interface MovementReplicationData {
     transform: Phaser.Types.Math.Vector2Like;
     velocity: Phaser.Types.Math.Vector2Like;
     inputs: InputState;
@@ -49,7 +49,7 @@ export class CharacterController {
         private connectionManager: ConnectionManager,
         private netRole = NetRole.None,
         private client?: Client,
-        private initialReplicationData?: InitialReplicationData
+        private movementReplicationData?: MovementReplicationData
     ) {
         this.floor = scene.children.getByName('floor');
         this.ceiling = scene.children.getByName('ceiling');
@@ -70,10 +70,6 @@ export class CharacterController {
         this.sfxManager = SFXManager.getInstance();
     }
 
-    isLocallyControlled() {
-        return this.netRole === NetRole.Authority;
-    }
-
     private setupInputs() {
         if (this.isLocallyControlled()) {
             this.inputs = {
@@ -90,20 +86,6 @@ export class CharacterController {
         }
     }
 
-    getInputState(): InputState {
-        if (!this.character) return { left: false, right: false, flap: false };
-
-        return this.isLocallyControlled() ? {
-            left: (this.inputs.left as Phaser.Input.Keyboard.Key).isDown,
-            right: (this.inputs.right as Phaser.Input.Keyboard.Key).isDown,
-            flap: (this.inputs.flap as Phaser.Input.Keyboard.Key).isDown
-        } : {
-            left: !!this.inputs.left,
-            right: !!this.inputs.right,
-            flap: !!this.inputs.flap
-        };
-    }
-
     private handleFloorCollision() {
         if (!this.floor) return;
 
@@ -114,7 +96,7 @@ export class CharacterController {
         });
     }
 
-    protected handleCeilingCollision() {
+    private handleCeilingCollision() {
         if (!this.ceiling) return;
 
         const balloon = this.character.getBalloon();
@@ -126,7 +108,7 @@ export class CharacterController {
         });
     }
 
-    protected resetVelocityAcceleration() {
+    private resetVelocityAcceleration() {
         const body = this.character.getBody();
 
         if (this.isOnGround) {
@@ -161,7 +143,7 @@ export class CharacterController {
         );
     }
 
-    protected handleMovement(time: number, delta: number) {
+    private handleMovement(time: number, delta: number) {
         const { left, right, flap } = this.getInputState();
         const body = this.character.getBody();
 
@@ -214,15 +196,6 @@ export class CharacterController {
         }
     }
 
-    setCharacter(character: Character) {
-        this.character = character;
-
-        if (this.initialReplicationData) {
-            const { transform, velocity, inputs, state } = this.initialReplicationData;
-            this.updatePeerMovementInputState(transform, velocity, inputs, state);
-        }
-    }
-
     private updatePeerMovementInputState(
         transform: Phaser.Types.Math.Vector2Like,
         velocity: Phaser.Types.Math.Vector2Like,
@@ -268,6 +241,42 @@ export class CharacterController {
         this.character.y = Phaser.Math.Interpolation.Linear([this.character.y, predictedTransformY], .1);
     }
 
+    private processCallback: Phaser.Types.Physics.Arcade.ArcadePhysicsCallback = (object1, object2) => {
+        const character1 = object1 as Character;
+        const character2 = object2 as Character;
+
+        if (!character1 || !character2) return false;
+
+        return character1.state !== CharacterState.death && character2.state !== CharacterState.death;
+    }
+
+    isLocallyControlled() {
+        return this.netRole === NetRole.Authority;
+    }
+
+    getInputState(): InputState {
+        if (!this.character) return { left: false, right: false, flap: false };
+
+        return this.isLocallyControlled() ? {
+            left: (this.inputs.left as Phaser.Input.Keyboard.Key).isDown,
+            right: (this.inputs.right as Phaser.Input.Keyboard.Key).isDown,
+            flap: (this.inputs.flap as Phaser.Input.Keyboard.Key).isDown
+        } : {
+            left: !!this.inputs.left,
+            right: !!this.inputs.right,
+            flap: !!this.inputs.flap
+        };
+    }
+
+    setCharacter(character: Character) {
+        this.character = character;
+
+        if (this.movementReplicationData) {
+            const { transform, velocity, inputs, state } = this.movementReplicationData;
+            this.updatePeerMovementInputState(transform, velocity, inputs, state);
+        }
+    }
+
     update(time: number, delta: number) {
         if (!this.character) return;
 
@@ -281,15 +290,6 @@ export class CharacterController {
             this.resetVelocityAcceleration();
             this.handleMovement(time, delta);
         }
-    }
-
-    private processCallback: Phaser.Types.Physics.Arcade.ArcadePhysicsCallback = (object1, object2) => {
-        const character1 = object1 as Character;
-        const character2 = object2 as Character;
-
-        if (!character1 || !character2) return false;
-
-        return character1.state !== CharacterState.death && character2.state !== CharacterState.death;
     }
 
     addCharacterCollisionOverlap(locallyControlledCharacter: Character) {

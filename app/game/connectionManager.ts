@@ -83,16 +83,15 @@ export class ConnectionManager extends EventTarget {
 
         if (!client || !client.dataChannel) return;
 
-        const initialMovementMessage = (event: any) => {
+        const movementMessageHandler = (event: any) => {
             const data = JSON.parse(event.data);
 
             if (data.type !== MessageType.movement) return;
 
-            this.dispatchEvent(new CustomEvent<Message>('initialMovementMessage', { detail: { client, data } }));
-            client.dataChannel!.removeEventListener('message', initialMovementMessage);
+            this.dispatchEvent(new CustomEvent<Message>('movementMessage', { detail: { client, data } }));
         };
 
-        const deathMessage = (event: any) => {
+        const deathMessageHandler = (event: any) => {
             const data = JSON.parse(event.data);
 
             if (data.type !== MessageType.death) return;
@@ -103,8 +102,8 @@ export class ConnectionManager extends EventTarget {
             this.dispatchEvent(new CustomEvent<Message>('deathMessage', { detail: { client, data } }));
         };
 
-        client.dataChannel.addEventListener('message', initialMovementMessage);
-        client.dataChannel.addEventListener('message', deathMessage);
+        client.dataChannel.addEventListener('message', movementMessageHandler);
+        client.dataChannel.addEventListener('message', deathMessageHandler);
     }
 
     private async getClientsInRoomResult(clients: { id: string, data: any }[]) {
@@ -165,25 +164,6 @@ export class ConnectionManager extends EventTarget {
         this.leaveClient(clientId);
     }
 
-    leaveAllClients() {
-        const clientIds = Object.keys(this.clients);
-
-        for (const clientId of clientIds) {
-            this.leaveClient(clientId);
-        }
-    }
-
-    destroy() {
-        socket.emit('leaveRoom');
-        socket.off('getClientsInRoomResult', this.getClientsInRoomResult);
-        socket.off('answer', this.answer);
-        socket.off('offer', this.offer);
-        socket.off('iceCandidate', this.iceCandidate);
-        socket.off('disconnect', this.disconnect);
-        socket.off('leavingClient', this.leavingClient);
-        socket.off('disconnectingClient', this.disconnectingClient);
-    }
-
     private leaveClient(clientId: string) {
         const client = this.clients[clientId];
 
@@ -200,8 +180,6 @@ export class ConnectionManager extends EventTarget {
     }
 
     private registerPeerConnectionEventsForClient(clientId: string, peerConnection: RTCPeerConnection) {
-        const client = this.clients[clientId];
-
         peerConnection.addEventListener('icecandidate', event => {
             if (!event.candidate) return;
 
@@ -221,6 +199,25 @@ export class ConnectionManager extends EventTarget {
         });
 
         PushToTalkService.getInstance().handleTrackEvent(peerConnection);
+    }
+
+    leaveAllClients() {
+        const clientIds = Object.keys(this.clients);
+
+        for (const clientId of clientIds) {
+            this.leaveClient(clientId);
+        }
+    }
+
+    destroy() {
+        socket.emit('leaveRoom');
+        socket.off('getClientsInRoomResult', this.getClientsInRoomResult);
+        socket.off('answer', this.answer);
+        socket.off('offer', this.offer);
+        socket.off('iceCandidate', this.iceCandidate);
+        socket.off('disconnect', this.disconnect);
+        socket.off('leavingClient', this.leavingClient);
+        socket.off('disconnectingClient', this.disconnectingClient);
     }
 
     getClient(id: string) {

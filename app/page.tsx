@@ -1,7 +1,7 @@
 "use client";
 
+import { useEffect, useState, useCallback } from "react";
 import dynamic from 'next/dynamic'
-import { useEffect, useState, Component, useCallback } from "react";
 import { socket } from "@/socket.mjs";
 import { NickName } from "@/app/nickNameForm";
 import { Lobby } from "@/app/lobby";

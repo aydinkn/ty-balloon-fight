@@ -1,5 +1,5 @@
 import 'phaser';
-import { CharacterType, CharacterState } from '@/app/game/character';
+import { CharacterType } from '@/app/game/character';
 
 export class CharacterSprite extends Phaser.GameObjects.Sprite {
     private characterType: CharacterType;
