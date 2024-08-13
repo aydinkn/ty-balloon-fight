@@ -56,18 +56,24 @@ export class CharacterController {
 
         if (client) {
             this.netRole = NetRole.SimulatedProxy;
-
-            if (client.dataChannel) {
-                client.dataChannel.addEventListener('message', event => {
-                    const data = JSON.parse(event.data);
-                    const { transform, velocity, inputs } = data;
-                    this.updatePeerMovementInputState(transform, velocity, inputs);
-                });
-            }
+            this.registerDataChannelEvents();
         }
 
         this.setupInputs();
         this.sfxManager = SFXManager.getInstance();
+    }
+
+    private registerDataChannelEvents() {
+        if (!this.client?.dataChannel) return;
+
+        this.client.dataChannel.addEventListener('message', event => {
+            const data = JSON.parse(event.data);
+            
+            if (data.type !== MessageType.movement) return;
+
+            const { transform, velocity, inputs } = data;
+            this.updatePeerMovementInputState(transform, velocity, inputs);
+        });
     }
 
     private setupInputs() {
