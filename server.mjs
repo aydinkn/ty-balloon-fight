@@ -1,10 +1,13 @@
 import { createServer } from "node:http";
 import next from "next";
+import nextEnv from '@next/env';
 import { Server } from "socket.io";
 
+nextEnv.loadEnvConfig(process.cwd());
+
 const dev = process.env.NODE_ENV !== "production";
-const hostname = "localhost";
-const port = 3000;
+const hostname = process.env.NEXT_PUBLIC_HOSTNAME;
+const port = process.env.NEXT_PUBLIC_PORT;
 const app = next({ dev, hostname, port });
 const handler = app.getRequestHandler();
 
