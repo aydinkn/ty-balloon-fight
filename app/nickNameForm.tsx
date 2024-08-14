@@ -3,6 +3,8 @@
 import { FormEvent, useEffect, useRef } from "react";
 import { socket } from "@/socket.mjs";
 
+import styles from "@/app/nickNameForm.module.css";
+
 export interface NickNameFormProps {
     nickName?: string;
     onClickCancel: () => void;
@@ -40,10 +42,10 @@ export function NickName({ nickName, onClickCancel, onSetNickName }: NickNameFor
     }
 
     return (
-        <form name="nick-name-form" onSubmit={_onSubmit}>
+        <form className={styles.nickNameForm} onSubmit={_onSubmit}>
             <h2>Set your nick name</h2>
             <div>
-                <input type="text" name="nickname" ref={inputRef} defaultValue={nickName} />
+                <input type="text" name="nickname" ref={inputRef} defaultValue={nickName} placeholder="Enter your nickname" />
             </div>
             <div>
                 {nickName && <button type="button" onClick={_onClickCancel}>Cancel</button>}

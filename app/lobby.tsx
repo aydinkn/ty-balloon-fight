@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { socket } from "@/socket.mjs";
+
 import styles from "@/app/lobby.module.css";
 
 export interface LobbyProps {
@@ -86,14 +87,19 @@ export function Lobby({ onClickCreateRoom, onClickChangeNickName, onJoinRoom }: 
     };
 
     return (
-        <div className="lobby">
+        <div className={styles.lobby}>
             <h2>Lobby</h2>
             <div>
-                <table className={styles.room_select}>
+                <table>
                     <tbody>
                         <tr>
                             <th>Room Name</th>
                         </tr>
+                        {rooms.length === 0 &&
+                        <tr>
+                            <td>There is no active room</td>
+                        </tr>
+                        }
                         {rooms.map((room) => (
                             <tr key={room} onClick={() => _onClickRoomRow(room)} className={selectedRoom === room ? styles.selected : ''}>
                                 <td>{room}</td>

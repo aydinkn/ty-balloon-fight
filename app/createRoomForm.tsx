@@ -3,6 +3,8 @@
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { socket } from "@/socket.mjs";
 
+import styles from "@/app/createRoomForm.module.css";
+
 export interface CreateRoomFormProps {
     onClickCancel: () => void;
     onCreateRoom: (roomName: string) => void;
@@ -50,10 +52,10 @@ export function CreateRoomForm({ onClickCancel, onCreateRoom }: CreateRoomFormPr
     }
 
     return (
-        <form name="create-room-form" onSubmit={_onSubmit}>
+        <form className={styles.createRoomForm} onSubmit={_onSubmit}>
             <h2>Create Room</h2>
             <div>
-                <input type="text" name="roomname" ref={inputRef} />
+                <input type="text" name="roomname" ref={inputRef} placeholder="Enter room name" />
             </div>
             <div>
                 <button type="button" onClick={_onClickCancel}>Cancel</button>

@@ -6,6 +6,7 @@ import { socket } from "@/socket.mjs";
 import { NickName } from "@/app/nickNameForm";
 import { Lobby } from "@/app/lobby";
 import { CreateRoomForm } from "@/app/createRoomForm";
+import styles from "@/app/page.module.css";
 
 const GameBridge = dynamic(() => import('@/app/game/gameBridge').then(m => m.GameBridge), {
   ssr: false,
@@ -102,7 +103,7 @@ export default function Home() {
   };
 
   return (
-    <div>
+    <div className={styles.container}>
       <p>Status: {isConnected ? "connected" : "disconnected"}</p>
 
       {renderNickNameForm && <NickName nickName={nickName}
