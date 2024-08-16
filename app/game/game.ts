@@ -86,7 +86,7 @@ export class Game extends Phaser.Scene {
     }
 
     preload() {
-        this.load.setBaseURL(`//${process.env.NEXT_PUBLIC_HOSTNAME}`);
+        this.load.setBaseURL(`//${process.env.NEXT_PUBLIC_HOSTNAME}:${process.env.NEXT_PUBLIC_PORT}`);
         this.load.image('background', 'game-assets/background.png');
         this.load.image('floor', 'game-assets/floor.png');
         this.load.spritesheet('character', 'game-assets/character.png', { frameWidth: 24, frameHeight: 32 });
