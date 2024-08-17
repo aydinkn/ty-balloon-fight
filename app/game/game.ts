@@ -107,7 +107,8 @@ export class Game extends Phaser.Scene {
             .setOrigin(0, 0).setName('ceiling');
         this.physics.add.existing(ceiling, true);
 
-        SFXManager.getInstance().create();
+        const sfxManager = SFXManager.getInstance().create();
+        sfxManager!.playSound('gameStart');
 
         this.localPlayer = this.spawnCharacter(this.gameBootData.team as CharacterType);
         this.localPlayer.setController(new CharacterController(this, this.connectionManager, NetRole.Authority));

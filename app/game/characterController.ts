@@ -321,6 +321,7 @@ export class CharacterController {
     death() {
         this.character.setState(CharacterState.death);
         this.sfxManager.playSound('balloonBurst');
+        this.sfxManager.playSound('death', false, 1);
         this.character.getBody().setVelocity(0).setAllowGravity(false);
 
         const destroyTimerEvent = this.scene.time.delayedCall(1500, () => {

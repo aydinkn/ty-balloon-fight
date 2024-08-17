@@ -1,9 +1,11 @@
 import 'phaser';
 
 export interface Sounds {
+    gameStart: Phaser.Sound.BaseSound;
     flap: Phaser.Sound.BaseSound;
-    balloonBurst: Phaser.Sound.BaseSound;
     bump: Phaser.Sound.BaseSound;
+    balloonBurst: Phaser.Sound.BaseSound;
+    death: Phaser.Sound.BaseSound;
 }
 
 export class SFXManager {
@@ -41,9 +43,11 @@ export class SFXManager {
         if (!this.scene) {
             this.scene = scene;
             this.scene.events.addListener('destroy', this.destroy);
+            this.scene.load.audio('game-start', 'game-assets/game-start.mp3');
             this.scene.load.audio('flap', 'game-assets/flap.mp3');
-            this.scene.load.audio('balloon-burst', 'game-assets/balloon-burst.mp3');
             this.scene.load.audio('bump', 'game-assets/bump.mp3');
+            this.scene.load.audio('balloon-burst', 'game-assets/balloon-burst.mp3');
+            this.scene.load.audio('death', 'game-assets/death.mp3');
         }
 
         return this;
@@ -55,17 +59,21 @@ export class SFXManager {
         this.scene.sound.pauseOnBlur = false;
 
         this.sounds = {
+            gameStart: this.scene.sound.add('game-start'),
             flap: this.scene.sound.add('flap'),
+            bump: this.scene.sound.add('bump'),
             balloonBurst: this.scene.sound.add('balloon-burst'),
-            bump: this.scene.sound.add('bump')
+            death: this.scene.sound.add('death')
         };
+
+        return this;
     }
 
-    playSound(key: keyof Sounds, playIfNotPlaying = false) {
+    playSound(key: keyof Sounds, playIfNotPlaying = false, delayInSec?: number) {
         const sound = this.sounds[key];
 
         if (!sound || (playIfNotPlaying && sound.isPlaying)) return;
 
-        sound.play();
+        sound.play({ delay: delayInSec });
     }
 }
