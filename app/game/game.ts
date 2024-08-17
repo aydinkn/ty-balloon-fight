@@ -24,9 +24,7 @@ export class Game extends Phaser.Scene {
     }
 
     private registerConnectionManagerEvents() {
-        const movementMessageHandler = (event: Event) => {
-            this.connectionManager.removeEventListener('movementMessage', movementMessageHandler);
-
+        const initialMovementMessageHandler = (event: Event) => {
             const customEvent = event as CustomEvent<Message>;
             const { client, data } = customEvent.detail;
 
@@ -40,7 +38,7 @@ export class Game extends Phaser.Scene {
             controller.addCharacterCollisionOverlap(this.localPlayer);
         };
 
-        this.connectionManager.addEventListener('movementMessage', movementMessageHandler);
+        this.connectionManager.addEventListener('initialMovementMessage', initialMovementMessageHandler);
 
         this.connectionManager.addEventListener('deathMessage', event => {
             const customEvent = event as CustomEvent<Message>;

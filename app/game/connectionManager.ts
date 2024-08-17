@@ -83,12 +83,13 @@ export class ConnectionManager extends EventTarget {
 
         if (!client || !client.dataChannel) return;
 
-        const movementMessageHandler = (event: any) => {
+        const initialMovementMessageHandler = (event: any) => {
             const data = JSON.parse(event.data);
 
             if (data.type !== MessageType.movement) return;
 
-            this.dispatchEvent(new CustomEvent<Message>('movementMessage', { detail: { client, data } }));
+            client.dataChannel?.removeEventListener('message', initialMovementMessageHandler);
+            this.dispatchEvent(new CustomEvent<Message>('initialMovementMessage', { detail: { client, data } }));
         };
 
         const deathMessageHandler = (event: any) => {
@@ -102,7 +103,7 @@ export class ConnectionManager extends EventTarget {
             this.dispatchEvent(new CustomEvent<Message>('deathMessage', { detail: { client, data } }));
         };
 
-        client.dataChannel.addEventListener('message', movementMessageHandler);
+        client.dataChannel.addEventListener('message', initialMovementMessageHandler);
         client.dataChannel.addEventListener('message', deathMessageHandler);
     }
 
